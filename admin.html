@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Siklamen Yönetim</title>
+  <link rel="icon" href="img/siklamen.svg" type="image/svg+xml" />
+</head>
+<body>
+  <!-- Giriş -->
+  <main class="login" id="login" hidden>
+    <form class="card login-card" id="login-form">
+      <img src="img/siklamen.svg" alt="" width="64" height="64" />
+      <h1>Yönetici girişi</h1>
+      <p class="muted">Siklamen Bilgi Oyunu soru paneli</p>
+      <label>Şifre
+        <input type="password" id="login-pass" autocomplete="current-password" required autofocus />
+      </label>
+      <p class="error" id="login-error" hidden></p>
+      <button class="btn primary" type="submit">Giriş yap</button>
+    </form>
+  </main>
+
+  <!-- Panel -->
+  <div class="app" id="app" hidden>
+    <header class="top">
+      <div class="brand">
+        <img src="img/siklamen.svg" alt="" width="40" height="40" />
+        <div>
+          <strong>Siklamen Bilgi Oyunu</strong>
+          <span>Yönetim paneli</span>
+        </div>
+      </div>
+      <nav class="top-actions">
+        <a class="btn ghost" href="./" target="_blank" rel="noopener">Oyunu aç ↗</a>
+        <button class="btn ghost" id="logout" type="button">Çıkış</button>
+      </nav>
+    </header>
+
+    <div class="banner" id="local-banner" hidden>
+      Sunucu bulunamadı. Değişiklikler yalnızca bu tarayıcıda saklanıyor. Kalıcı ve ortak kullanım için
+      oyunu <code>npm start</code> ile çalıştırın ya da soruları JSON olarak dışa aktarın.
+    </div>
+
+    <section class="stats" id="stats"></section>
+
+    <div class="grid">
+      <section class="card" id="editor">
+        <div class="card-head">
+          <h2 id="form-title">Yeni soru ekle</h2>
+          <button class="btn ghost small" id="form-cancel" type="button" hidden>Vazgeç</button>
+        </div>
+        <form id="q-form" novalidate>
+          <label>Soru
+            <textarea name="soru" rows="3" maxlength="300" required placeholder="Örn. Sinüzitte bol sıvı tüketmek neden önerilir?"></textarea>
+          </label>
+          <label class="correct">Doğru cevap
+            <input name="dogru" maxlength="120" required placeholder="Doğru şık" />
+          </label>
+          <fieldset>
+            <legend>Yanlış cevaplar</legend>
+            <input name="y0" maxlength="120" required placeholder="Yanlış şık 1" />
+            <input name="y1" maxlength="120" required placeholder="Yanlış şık 2" />
+            <input name="y2" maxlength="120" required placeholder="Yanlış şık 3" />
+          </fieldset>
+          <p class="hint">Şıkların sırası oyunda her seferinde karıştırılır.</p>
+          <details>
+            <summary>İsteğe bağlı alanlar</summary>
+            <label>Kategori
+              <input name="kategori" maxlength="60" list="cat-list" placeholder="Örn. Ne Yapmalı?" />
+              <datalist id="cat-list"></datalist>
+            </label>
+            <label>İpucu <small>(İpucu jokerinde gösterilir)</small>
+              <input name="ipucu" maxlength="300" />
+            </label>
+            <label>Açıklama <small>(cevaptan sonra gösterilir)</small>
+              <textarea name="aciklama" rows="2" maxlength="400"></textarea>
+            </label>
+          </details>
+          <label class="check"><input type="checkbox" name="aktif" checked /> Oyunda göster</label>
+          <p class="error" id="form-error" hidden></p>
+          <button class="btn primary" type="submit" id="form-submit">Soruyu kaydet</button>
+        </form>
+      </section>
+
+      <section class="card list-card">
+        <div class="card-head">
+          <h2>Sorular <span class="count" id="q-count"></span></h2>
+          <div class="filters">
+            <input type="search" id="search" placeholder="Soru ya da cevap ara…" />
+            <select id="cat-filter"><option value="">Tüm kategoriler</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Soru</th><th>Kategori</th><th title="Oyuncuların doğru cevaplama oranı">Başarı</th><th>Aktif</th><th></th></tr>
+            </thead>
+            <tbody id="q-body"></tbody>
+          </table>
+          <p class="empty" id="q-empty" hidden>Eşleşen soru yok.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid two">
+      <section class="card">
+        <h2>Oyun ayarları</h2>
+        <form id="s-form" class="settings">
+          <label>Oyun başına soru sayısı
+            <input type="number" name="questionsPerGame" min="1" max="50" required />
+          </label>
+          <label>Soru başına süre (saniye)
+            <input type="number" name="secondsPerQuestion" min="0" max="180" required />
+            <small>0 girilirse süre sınırı olmaz.</small>
+          </label>
+          <label class="check"><input type="checkbox" name="endOnWrong" /> Yanlış cevapta ya da süre dolunca oyun bitsin (Kim Milyoner Olmak İster kuralı)</label>
+          <button class="btn primary" type="submit">Ayarları kaydet</button>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Veri</h2>
+        <p class="muted">Soruları yedekleyin ya da başka bir kurulumdan aktarın. İçe aktarma mevcut listenin yerine geçer.</p>
+        <div class="row">
+          <button class="btn ghost" id="export" type="button">JSON dışa aktar</button>
+          <label class="btn ghost file">JSON içe aktar<input type="file" id="import" accept="application/json,.json" hidden /></label>
+          <button class="btn danger" id="reset-stats" type="button">İstatistikleri sıfırla</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/src/admin/admin.ts"></script>
+</body>
+</html>

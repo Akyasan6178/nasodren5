@@ -1,11 +1,35 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { resolve } from 'node:path';
+// @ts-expect-error — düz JS modülü, tip bildirimi yok
+import { createApi } from './server/api.mjs';
+
+// Geliştirme sunucusunda da aynı soru API'sini çalıştırır; ayrı bir süreç gerekmez.
+function apiPlugin(): Plugin {
+  return {
+    name: 'siklamen-api',
+    configureServer(server) {
+      server.middlewares.use(
+        createApi({
+          dataDir: resolve(import.meta.dirname, 'data'),
+          seedFile: resolve(import.meta.dirname, 'public/data/varsayilan-sorular.json'),
+          adminPassword: process.env.ADMIN_PASSWORD || 'siklamen',
+        }),
+      );
+      server.middlewares.use((req, _res, next) => {
+        if (req.url === '/admin' || req.url === '/yonetim') req.url = '/admin.html';
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  // Relative base so the build can be dropped under any sub-path (e.g. /oyun/).
   base: './',
+  plugins: [apiPlugin()],
   build: {
-    target: 'es2020',
-    assetsInlineLimit: 0,
-    chunkSizeWarningLimit: 1200,
+    target: 'es2022',
+    rollupOptions: {
+      input: { oyun: resolve(import.meta.dirname, 'index.html'), admin: resolve(import.meta.dirname, 'admin.html') },
+    },
   },
 });

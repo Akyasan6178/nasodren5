@@ -1,11 +1,10 @@
-// Visual smoke test: serves dist/ via vite preview, captures screenshots on
-// desktop + phone viewports, and fails on console errors.
+// Görsel duman testi: oyunu masaüstü ve telefon boyutunda açar, ekran görüntüsü alır,
+// konsol hatalarını ve ortalama kare hızını raporlar.
+//   node scripts/shot.mjs <url> <çıktı-klasörü>
 import { chromium } from 'playwright';
-import { preview } from 'vite';
 
-const out = process.argv[2] ?? 'shots';
-const server = await preview({ preview: { port: 4179, strictPort: true }, logLevel: 'silent' });
-const url = 'http://localhost:4179/?debug';
+const url = process.argv[2] ?? 'http://localhost:5173/';
+const out = process.argv[3] ?? 'shots';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 
@@ -14,55 +13,25 @@ async function run(name, viewport, opts = {}) {
   const page = await ctx.newPage();
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${name}] ${m.type()}: ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[${name}] pageerror: ${e.message}`));
-  await page.goto(url);
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: `${out}/${name}-1-start.png` });
-  await page.click('#btn-start');
-  await page.waitForTimeout(1000);
-  await page.screenshot({ path: `${out}/${name}-2-ready.png` });
-  // Steer a bit with the keyboard.
-  await page.waitForTimeout(1500);
-  for (const k of ['ArrowLeft', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowLeft']) { await page.keyboard.press(k); await page.waitForTimeout(450); }
-  await page.screenshot({ path: `${out}/${name}-3-play.png` });
+  await page.goto(url + '?fps');
+  await page.waitForFunction(() => window.__game, null, { timeout: 15000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/${name}-0-baslangic.png` });
+  await page.keyboard.press('Enter'); // "Başla"
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `${out}/${name}-1-soru.png` });
+  // ilk şıkkı seç, onayla, sonucu gör
+  await page.keyboard.press('a');
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: `${out}/${name}-2-secim.png` });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(2400);
+  await page.screenshot({ path: `${out}/${name}-3-sonuc.png` });
   if (opts.extra) await opts.extra(page, name);
   await ctx.close();
 }
 
-await run('desktop', { width: 1440, height: 900 }, {
-  extra: async (page, name) => {
-    // Force power mode + rebound via the exposed debug hook to inspect visuals.
-    await page.evaluate(() => window.__game?.debugPower());
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: `${out}/${name}-4-power.png` });
-    await page.evaluate(() => window.__game?.debugRebound());
-    await page.waitForTimeout(1200);
-    await page.screenshot({ path: `${out}/${name}-5-rebound.png` });
-    await page.evaluate(() => window.__game?.debugGameOver());
-    await page.waitForTimeout(800);
-    await page.screenshot({ path: `${out}/${name}-6-over.png` });
-  },
-});
-await run('phone', { width: 390, height: 844 }, {
-  dpr: 3,
-  touch: true,
-  extra: async (page, name) => {
-    // Continuous swipe without lifting: up, then right.
-    const before = await page.evaluate(() => window.__game.game.player.want);
-    await page.mouse.move(200, 700);
-    await page.mouse.down();
-    await page.mouse.move(200, 640, { steps: 4 });
-    const afterUp = await page.evaluate(() => window.__game.game.player.want);
-    await page.mouse.move(270, 640, { steps: 4 });
-    const afterRight = await page.evaluate(() => window.__game.game.player.want);
-    await page.mouse.up();
-    console.log('swipe want:', before, '-> up', afterUp, '-> right', afterRight, '(UP=0 RIGHT=3)');
-    if (afterUp !== 0 || afterRight !== 3) errors.push('swipe failed');
-    await page.evaluate(() => window.__game?.debugGameOver());
-    await page.waitForTimeout(3500);
-    await page.screenshot({ path: `${out}/${name}-6-over.png` });
-  },
-});
-
+await run('masaustu', { width: 1600, height: 900 });
+await run('telefon', { width: 390, height: 844 }, { dpr: 2, touch: true });
 await browser.close();
-await server.close();
-console.log(errors.length ? errors.join('\n') : 'NO CONSOLE ERRORS');
+console.log(errors.length ? errors.join('\n') : 'Konsol hatası yok.');

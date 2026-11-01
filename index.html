@@ -1,150 +1,24 @@
 <!doctype html>
 <html lang="tr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#fdf0f4" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="format-detection" content="telephone=no" />
-    <title>Sinüs Labirenti – Tıkanıklığı Aş</title>
-    <meta name="description" content="Sinüs labirentinde tıkanıklığı temizle, semptomlardan kaç ve Siklamen çiçeğinin doğal gücüyle nefesini özgür bırak!" />
-    <meta property="og:title" content="Sinüs Labirenti – Tıkanıklığı Aş" />
-    <meta property="og:description" content="Sinüs temizlik skorunu geçebilir misin? Siklamen çiçeğiyle tıkanıklığı aş!" />
-    <meta property="og:type" content="website" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%2322c3c9'/%3E%3Cpath d='M32 32 L60 18 L60 46 Z' fill='%23eafbfa'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/src/ui/styles.css" />
-  </head>
-  <body>
-    <div id="app">
-      <aside id="panel-left" class="side-panel scrollable">
-        <h2>Oyunu Tanı</h2>
-        <div id="legend-side" class="guide"></div>
-      </aside>
-
-      <main id="center">
-        <header id="hud" class="no-swipe">
-          <div class="hud-card">
-            <div class="hud-row">
-              <div class="stat stat-score"><span class="label">Skor</span><span id="hud-score" class="value">0</span></div>
-              <div class="stat"><span class="label">Bölüm</span><span id="hud-level" class="value">1</span></div>
-              <div class="stat stat-best hide-xs"><span class="label">En İyi</span><span id="hud-best" class="value">0</span></div>
-              <div id="hud-lives" class="lives" aria-label="Kalan nefes"></div>
-              <div class="hud-buttons">
-                <button id="btn-mute" class="icon-btn" aria-label="Sesi aç/kapat"></button>
-                <button id="btn-pause" class="icon-btn" aria-label="Duraklat"></button>
-              </div>
-            </div>
-            <div class="hud-row meters">
-              <div class="meter" id="meter-clean">
-                <div class="meter-head"><span class="label">Sinüs Temizliği</span><b id="clean-pct" class="pct">0%</b></div>
-                <div class="track"><div class="fill"></div><i class="tick" style="left: 25%"></i><i class="tick" style="left: 50%"></i><i class="tick" style="left: 75%"></i></div>
-              </div>
-              <div id="hud-mult" class="mult" aria-label="Kombo çarpanı">x1</div>
-              <div class="meter" id="meter-pressure">
-                <div class="meter-head"><span class="label" id="pressure-label">Semptom Baskısı</span></div>
-                <div class="track"><div class="fill"></div></div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div id="stage">
-          <div id="ready" class="ready" hidden>HAZIR!</div>
-          <div id="level-card" class="level-card" hidden></div>
-          <div id="toast" class="toast" role="status" aria-live="polite"></div>
-        </div>
-
-        <!-- Tall phones: the side panels' essentials, in the space under the maze. -->
-        <section id="mobile-info" class="mobile-info" aria-label="Oyun bilgisi">
-          <div class="mi-where"><span class="mi-label">Şu an buradasın</span> <b id="mi-loc">Sinüs Labirenti</b></div>
-          <ul id="mi-legend" class="mi-legend"></ul>
-          <div class="mi-fact-card">
-            <span class="fact-head">Biliyor muydun?</span>
-            <p id="mi-fact" class="mi-fact"></p>
-          </div>
-        </section>
-
-        <div id="hint" class="hint">Ekranın herhangi bir yerinde parmağını kaydırarak yön ver</div>
-
-        <!-- Screens -->
-        <section id="screen-start" class="screen scrollable" hidden>
-          <div class="card">
-            <div id="brandmark" class="brandmark"><img id="logo-icon" alt="" /><span>Sinüs Labirenti</span></div>
-            <p class="subtitle">Tıkanıklığı aş, nefesini özgür bırak!</p>
-            <ol class="steps">
-              <li><span class="step-n">1</span><span><b>Mukusu topla</b> ve sinüsü temizle</span></li>
-              <li><span class="step-n">2</span><span><b>Siklamen Özü</b> al, semptomları yakala</span></li>
-              <li><span class="step-n">3</span><span><b>Spreyden</b> uzak dur: rebound yapar</span></li>
-            </ol>
-            <ul id="legend-start" class="legend compact"></ul>
-            <p class="controls">
-              <span class="ctl-touch">Ekranda <b>kaydırarak</b> yön ver</span>
-              <span class="ctl-keys"><b>Yön tuşları</b> / <b>WASD</b> ile oyna · <b>P</b> duraklat</span>
-            </p>
-            <button id="btn-start" class="btn primary big">Oyna</button>
-            <p class="best-line">En iyi skorun: <b id="start-best">0</b></p>
-            <p class="disclaimer">Bu oyun yalnızca bilgilendirme amaçlıdır. Tıbbi tavsiye veya teşhis için bir uzmana danışın.</p>
-          </div>
-        </section>
-
-        <section id="screen-pause" class="screen" hidden>
-          <div class="card small">
-            <h2>Duraklatıldı</h2>
-            <button id="btn-resume" class="btn primary big">Devam Et</button>
-            <button id="btn-restart" class="btn ghost">Yeniden Başla</button>
-          </div>
-        </section>
-
-        <section id="screen-level" class="screen scrollable" hidden>
-          <div class="card celebrate">
-            <div class="badge"><span id="lvl-num"></span> temizlendi</div>
-            <h2 class="title-clear">24 Saatlik Ferahlık Sağlandı</h2>
-            <p class="tag">Doğal Koruma</p>
-            <p class="score-line">Skor: <b id="lvl-score">0</b></p>
-            <p id="lvl-body" class="body"></p>
-            <a id="lvl-cta" class="btn cta" target="_blank" rel="noopener">Uzman Makalelerini Oku</a>
-            <button id="btn-next" class="btn primary">Sonraki Seviye</button>
-            <p class="safety"><span id="lvl-safety"></span> <a id="lvl-safety-link" target="_blank" rel="noopener"></a></p>
-          </div>
-        </section>
-
-        <section id="screen-over" class="screen scrollable" hidden>
-          <div class="card">
-            <h2 class="title-over">Tıkanıklık Galip Geldi</h2>
-            <p class="score-big"><span id="over-score">0</span></p>
-            <p class="best-line">En iyi: <b id="over-best">0</b> <span id="over-record" class="record" hidden>Yeni rekor!</span></p>
-            <p id="over-body" class="body"></p>
-            <a id="over-cta" class="btn cta" target="_blank" rel="noopener">Doğal Çözüm Rehberini Oku</a>
-            <div class="share">
-              <button id="btn-share" class="btn share-btn">Skorunu Paylaş</button>
-              <a id="btn-wa" class="btn share-btn wa" target="_blank" rel="noopener">WhatsApp</a>
-              <button id="btn-copy" class="btn share-btn">Linki Kopyala</button>
-            </div>
-            <button id="btn-again" class="btn primary">Tekrar Oyna</button>
-            <p class="safety"><span id="over-safety"></span> <a id="over-safety-link" target="_blank" rel="noopener"></a></p>
-          </div>
-        </section>
-      </main>
-
-      <aside id="panel-right" class="side-panel scrollable">
-        <div class="where">
-          <div class="where-label">Şu an buradasın</div>
-          <div id="where-diagram" class="where-diagram"></div>
-          <div id="where-name" class="where-name">Sinüs Labirenti</div>
-          <p id="where-blurb" class="where-blurb">Oyuna başla ve sinüs yolculuğuna çık!</p>
-        </div>
-        <div class="fact-card">
-          <span class="fact-head">Biliyor muydunuz?</span>
-          <div id="fact" class="fact"></div>
-          <button id="btn-fact" class="fact-next" type="button">Sonraki bilgi →</button>
-        </div>
-        <a id="side-cta" class="btn cta small" target="_blank" rel="noopener">Siklamen hakkında daha fazlası</a>
-        <p class="disclaimer">Bu oyun yalnızca bilgilendirme amaçlıdır. Tıbbi tavsiye veya teşhis için bir uzmana danışın.</p>
-      </aside>
-    </div>
-    <div id="fps" hidden></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#120629" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Siklamen Bilgi Oyunu</title>
+  <link rel="icon" href="img/siklamen.svg" type="image/svg+xml" />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #120629; touch-action: manipulation; overscroll-behavior: none; }
+    #app, #app canvas { position: fixed; inset: 0; display: block; }
+    #app canvas { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+    #loader { position: fixed; inset: 0; display: grid; place-items: center; color: #c4b5ff; font: 500 16px system-ui, sans-serif; letter-spacing: .3em; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="loader">YÜKLENİYOR…</div>
+  <script type="module" src="/src/game/main.ts"></script>
+</body>
 </html>
