@@ -39,7 +39,7 @@ export class TimerClock {
     fontSize: 54,
     fontWeight: '800',
     fill: '#ffffff',
-    dropShadow: { color: '#ffffff', blur: 12, distance: 0, alpha: 0.55, angle: 0 },
+    dropShadow: { color: '#ffffff', blur: 8, distance: 0, alpha: 0.2, angle: 0 },
     padding: 20,
   }, '30');
   private readonly label = text({ fontSize: 13, fontWeight: '600', fill: C.lav, letterSpacing: 3 }, 'SÜRE');

@@ -88,11 +88,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--c
 input[aria-invalid=true], textarea[aria-invalid=true] { border-color: var(--red); }
 fieldset { border: 0; padding: 0; margin: 0 0 6px; }
 legend { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
-fieldset input { margin-top: 0 !important; margin-bottom: 8px; border-left: 3px solid rgba(255, 77, 94, 0.7) !important; }
-.correct input { border-left: 3px solid var(--green); }
+fieldset input, fieldset textarea { margin-top: 0 !important; margin-bottom: 8px; }
+fieldset.wrong input { border-left: 3px solid rgba(255, 77, 94, 0.7) !important; }
+fieldset.correct input, fieldset.correct textarea { border-left: 3px solid var(--green) !important; }
+/* açıklama kutusu ait olduğu şıkkın hemen altında, biraz içeride durur */
+fieldset input.why { margin-left: 18px; width: calc(100% - 18px); margin-bottom: 14px; font-size: 14px; border-left-color: rgba(255, 77, 94, 0.3) !important; }
+legend small { font-weight: 400; color: var(--muted); }
 .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-details { margin-bottom: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
-summary { cursor: pointer; font-weight: 600; color: var(--cyan); margin-bottom: 12px; }
 .check { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .check input { width: 18px; height: 18px; accent-color: var(--pink); }
 .error { color: #ffb3bb; background: rgba(255, 77, 94, 0.12); border: 1px solid rgba(255, 77, 94, 0.4); padding: 8px 12px; border-radius: 10px; margin: 0 0 14px; font-size: 14px; }

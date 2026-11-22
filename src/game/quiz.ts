@@ -1,10 +1,11 @@
 // Oyun kuralları — çizimden bağımsız, saf durum makinesi.
 import type { AnswerLog, Question, Settings } from '../shared/store';
 
-export interface Option { text: string; correct: boolean; removed: boolean }
+/** `why`: şıkkın neden doğru ya da yanlış olduğu (boş olabilir). */
+export interface Option { text: string; correct: boolean; removed: boolean; why: string }
 export interface Round { q: Question; options: Option[] }
 export type Phase = 'answering' | 'locked' | 'revealed' | 'over';
-export type Lifeline = 'fifty' | 'hint' | 'skip';
+export type Lifeline = 'fifty' | 'hint' | 'double';
 
 function shuffle<T>(arr: T[], rng: () => number): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -22,22 +23,22 @@ export class Quiz {
   phase: Phase = 'answering';
   lastWasCorrect = false;
   lastTimedOut = false;
-  readonly lifelines: Record<Lifeline, boolean> = { fifty: true, hint: true, skip: true };
+  readonly lifelines: Record<Lifeline, boolean> = { fifty: true, hint: true, double: true };
+  /** Çift cevap jokeri bu soruda etkin: ilk yanlış cevap bir hak daha verir. */
+  doubleArmed = false;
   readonly log: AnswerLog[] = [];
   private readonly rounds: Round[];
-  private readonly reserve: Question[];
 
   constructor(pool: Question[], private readonly settings: Settings, private readonly rng: () => number = Math.random) {
     const picked = shuffle([...pool], rng);
     this.total = Math.min(settings.questionsPerGame, picked.length);
     this.rounds = picked.slice(0, this.total).map((q) => this.makeRound(q));
-    this.reserve = picked.slice(this.total);
   }
 
   private makeRound(q: Question): Round {
     const options: Option[] = [
-      { text: q.dogru, correct: true, removed: false },
-      ...q.yanlislar.map((text) => ({ text, correct: false, removed: false })),
+      { text: q.dogru, correct: true, removed: false, why: q.aciklama?.trim() ?? '' },
+      ...q.yanlislar.map((text, i) => ({ text, correct: false, removed: false, why: q.yanlisAciklamalar?.[i]?.trim() ?? '' })),
     ];
     return { q, options: shuffle(options, this.rng) };
   }
@@ -49,7 +50,6 @@ export class Quiz {
   /** Oyun, yanlış cevap yüzünden mi bitti? */
   get lost(): boolean { return this.phase === 'over' && !this.lastWasCorrect && this.settings.endOnWrong; }
   get seconds(): number { return this.settings.secondsPerQuestion; }
-  canSkip(): boolean { return this.lifelines.skip && this.reserve.length > 0; }
 
   select(i: number): boolean {
     if (this.phase !== 'answering' || i < 0 || i > 3 || this.round.options[i].removed) return false;
@@ -63,8 +63,22 @@ export class Quiz {
     return true;
   }
 
+  /**
+   * Kilitlenen cevap yanlışsa ve çift cevap jokeri etkinse: şık elenir, soru yeniden
+   * cevaplanabilir olur ve true döner. Aksi hâlde hiçbir şey değişmez; reveal() çağrılmalıdır.
+   */
+  retry(): boolean {
+    if (this.phase !== 'locked' || !this.doubleArmed || this.round.options[this.selected].correct) return false;
+    this.doubleArmed = false;
+    this.round.options[this.selected].removed = true;
+    this.selected = -1;
+    this.phase = 'answering';
+    return true;
+  }
+
   reveal(): boolean {
     if (this.phase !== 'locked') return false;
+    this.doubleArmed = false;
     const ok = this.round.options[this.selected].correct;
     this.lastWasCorrect = ok;
     this.lastTimedOut = false;
@@ -78,6 +92,7 @@ export class Quiz {
   timeout(): boolean {
     if (this.phase !== 'answering') return false;
     this.selected = -1;
+    this.doubleArmed = false;
     this.lastWasCorrect = false;
     this.lastTimedOut = true;
     this.log.push({ id: this.round.q.id, correct: false });
@@ -119,12 +134,11 @@ export class Quiz {
     return { text: 'Bu soru için ipucu yok, bir yanlış şık elendi.', removed };
   }
 
-  /** Mevcut soruyu yedekteki bir soruyla değiştirir. */
-  useSkip(): boolean {
-    if (!this.canSkip() || this.phase !== 'answering') return false;
-    this.lifelines.skip = false;
-    this.rounds[this.index] = this.makeRound(this.reserve.shift()!);
-    this.selected = -1;
+  /** Bu soru için ikinci cevap hakkı verir (ilk cevap yanlışsa bir kez daha seçilebilir). */
+  useDouble(): boolean {
+    if (!this.lifelines.double || this.phase !== 'answering') return false;
+    this.lifelines.double = false;
+    this.doubleArmed = true;
     return true;
   }
 }

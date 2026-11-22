@@ -55,29 +55,28 @@
           <label>Soru
             <textarea name="soru" rows="3" maxlength="300" required placeholder="Örn. Sinüzitte bol sıvı tüketmek neden önerilir?"></textarea>
           </label>
-          <label class="correct">Doğru cevap
-            <input name="dogru" maxlength="120" required placeholder="Doğru şık" />
+          <label>Kategori
+            <input name="kategori" maxlength="60" list="cat-list" required placeholder="Örn. Ne Yapmalı?" />
+            <datalist id="cat-list"></datalist>
           </label>
-          <fieldset>
-            <legend>Yanlış cevaplar</legend>
-            <input name="y0" maxlength="120" required placeholder="Yanlış şık 1" />
-            <input name="y1" maxlength="120" required placeholder="Yanlış şık 2" />
-            <input name="y2" maxlength="120" required placeholder="Yanlış şık 3" />
+          <fieldset class="answer correct">
+            <legend>Doğru cevap</legend>
+            <input name="dogru" maxlength="120" required placeholder="Doğru şık" />
+            <textarea name="aciklama" rows="2" maxlength="400" required placeholder="Neden doğru? (cevaptan sonra doğru şıkkın altında gösterilir)"></textarea>
           </fieldset>
-          <p class="hint">Şıkların sırası oyunda her seferinde karıştırılır.</p>
-          <details>
-            <summary>İsteğe bağlı alanlar</summary>
-            <label>Kategori
-              <input name="kategori" maxlength="60" list="cat-list" placeholder="Örn. Ne Yapmalı?" />
-              <datalist id="cat-list"></datalist>
-            </label>
-            <label>İpucu <small>(İpucu jokerinde gösterilir)</small>
-              <input name="ipucu" maxlength="300" />
-            </label>
-            <label>Açıklama <small>(cevaptan sonra gösterilir)</small>
-              <textarea name="aciklama" rows="2" maxlength="400"></textarea>
-            </label>
-          </details>
+          <fieldset class="answer wrong">
+            <legend>Yanlış cevaplar <small>(her şıkkın altına neden yanlış olduğunu yazın)</small></legend>
+            <input name="y0" maxlength="120" required placeholder="Yanlış şık 1" />
+            <input name="w0" class="why" maxlength="300" required placeholder="Yanlış şık 1 neden yanlış?" />
+            <input name="y1" maxlength="120" required placeholder="Yanlış şık 2" />
+            <input name="w1" class="why" maxlength="300" required placeholder="Yanlış şık 2 neden yanlış?" />
+            <input name="y2" maxlength="120" required placeholder="Yanlış şık 3" />
+            <input name="w2" class="why" maxlength="300" required placeholder="Yanlış şık 3 neden yanlış?" />
+          </fieldset>
+          <label>İpucu <small>(İpucu jokerinde gösterilir)</small>
+            <input name="ipucu" maxlength="300" required />
+          </label>
+          <p class="hint">Tüm alanlar zorunludur. Şıkların sırası oyunda her seferinde karıştırılır.</p>
           <label class="check"><input type="checkbox" name="aktif" checked /> Oyunda göster</label>
           <p class="error" id="form-error" hidden></p>
           <button class="btn primary" type="submit" id="form-submit">Soruyu kaydet</button>

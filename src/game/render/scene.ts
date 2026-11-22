@@ -2,12 +2,13 @@
 import { Container, Graphics, type Text } from 'pixi.js';
 import { Background } from './background';
 import { Baked, text } from './bake';
-import { createChrome, createKeyHints } from './chrome';
+import { createChrome } from './chrome';
 import { C, font, glow, noGlow } from './draw';
 import { HeadArt } from './head';
 import type { Layout } from './layout';
+import { ReviewPanel, WHY_LINE, type ReviewAction, type ReviewRow } from './review';
 import { TimerClock } from './timer';
-import { AnswerBox, Button, QuestionBox, neonButton, pinkButton, verdictChip, type Verdict } from './widgets';
+import { AnswerBox, Button, QuestionBox, neonButton, pinkButton, steps, uniformSize, type Verdict } from './widgets';
 import type { Lifeline } from '../quiz';
 
 export interface SceneHandlers {
@@ -24,13 +25,16 @@ export interface SceneHandlers {
 
 export type ActionMode = 'hints' | 'confirm' | 'feedback' | 'none';
 
+/** Yazı boyutu hesabı için oyundaki tüm metinler. */
+export interface TextPool { questions: string[]; answers: string[]; explanations: string[] }
+
+
 export class Scene {
   readonly root = new Container();
   readonly bg = new Background();
   layout: Layout;
 
   private readonly chrome: Baked;
-  private readonly keyHints: Baked;
   readonly btnNew: Button;
   readonly btnSound: Button<'on' | 'off'>;
   readonly btnFull: Button;
@@ -41,10 +45,9 @@ export class Scene {
   readonly answers: AnswerBox[];
   readonly board = new Container();
   readonly confirm: Button;
-  readonly next: Button<'next' | 'result'>;
-  readonly verdict = verdictChip();
-  readonly explain: Text;
-  readonly feedback = new Container();
+  /** Cevap sonrası açıklama ekranı. */
+  readonly review: ReviewPanel;
+  private pool: TextPool = { questions: [], answers: [], explanations: [] };
   readonly head: HeadArt;
   readonly timer = new TimerClock();
   readonly percent: Text;
@@ -61,14 +64,13 @@ export class Scene {
   constructor(layout: Layout, h: SceneHandlers) {
     this.layout = layout;
     this.chrome = createChrome(() => this.layout);
-    this.keyHints = createKeyHints();
 
     this.btnNew = new Button(190, 56, ['n'], neonButton('Yeni oyun', 'refresh', 20), h.onNew);
     this.btnSound = new Button(64, 56, ['on', 'off'], neonButton('', (v) => (v === 'off' ? 'mute' : 'speaker'), 20), h.onSound);
     this.btnFull = new Button(64, 56, ['n'], neonButton('', 'fullscreen', 20), h.onFull);
-    const ll = (label: string, ic: 'people' | 'bulb' | 'skip', k: Lifeline) =>
-      new Button(140, 56, ['n', 'used'], neonButton(label, ic, 17, { badge: true }), () => h.onLifeline(k), 26);
-    this.lifelines = { fifty: ll('50:50', 'people', 'fifty'), hint: ll('İpucu', 'bulb', 'hint'), skip: ll('Soruyu geç', 'skip', 'skip') };
+    const ll = (label: string, ic: 'people' | 'bulb' | 'double', k: Lifeline) =>
+      new Button(140, 56, ['n', 'used'], neonButton(label, ic, 17, { badge: true }), () => h.onLifeline(k), 26, { lift: 0.05 });
+    this.lifelines = { fifty: ll('50:50', 'people', 'fifty'), hint: ll('İpucu', 'bulb', 'hint'), double: ll('Çift cevap', 'double', 'double') };
 
     this.counter = text({ fontSize: 24, fontWeight: '700', letterSpacing: 1 });
     this.counter.anchor.set(0.5);
@@ -79,17 +81,14 @@ export class Scene {
     this.board.addChild(this.question.view, ...this.answers.map((a) => a.view));
 
     this.confirm = new Button(200, 44, ['n'], pinkButton({ n: 'Cevabı onayla' }, 19), h.onConfirm);
-    this.next = new Button(200, 46, ['next', 'result'], pinkButton({ next: 'Sonraki soru  →', result: 'Sonucu gör  →' }, 19), h.onNext);
-    this.explain = text({ fontSize: 16, fill: C.muted, wordWrap: true, lineHeight: 21 });
-    this.explain.anchor.set(0, 0.5);
-    this.feedback.addChild(this.verdict.view, this.explain, this.next.view);
+    this.review = new ReviewPanel(h.onNext);
 
     this.head = new HeadArt(360, 600);
     this.percent = text({
       fontSize: 82,
       fontWeight: '800',
       fill: C.cyan,
-      dropShadow: { color: C.cyan, blur: 14, distance: 0, alpha: 0.85, angle: 0 },
+      dropShadow: { color: C.cyan, blur: 8, distance: 0, alpha: 0.3, angle: 0 },
       padding: 24,
     }, '%0');
     this.percent.anchor.set(0.5);
@@ -137,9 +136,8 @@ export class Scene {
       this.counter,
       this.tagline,
       this.board,
-      this.keyHints.view,
       this.confirm.view,
-      this.feedback,
+      this.review.view,
       this.modal,
     );
     this.applyLayout(layout);
@@ -149,6 +147,7 @@ export class Scene {
   /** Görünür alan (tasarım koordinatlarında) değişince çağrılır. */
   setViewport(vx: number, vy: number, vw: number, vh: number) {
     this.bg.setViewport(this.layout, vx, vy, vw, vh);
+    this.review.setViewport(vx, vy, vw, vh);
     this.dim.clear().rect(vx, vy, vw, vh).fill({ color: 0x080319, alpha: 0.66 });
   }
 
@@ -164,7 +163,7 @@ export class Scene {
     put(this.btnFull, L.btnFull);
     put(this.lifelines.fifty, L.lifelines[0]);
     put(this.lifelines.hint, L.lifelines[1]);
-    put(this.lifelines.skip, L.lifelines[2]);
+    put(this.lifelines.double, L.lifelines[2]);
     for (const b of Object.values(this.lifelines)) b.baked.invalidate();
 
     this.counter.position.set(L.counter.x + L.counter.w / 2, L.counter.y + L.counter.h / 2 + 1);
@@ -176,27 +175,11 @@ export class Scene {
     const q = L.question;
     this.question.place(q.x, q.y, q.w, q.h, q.pt, q.padX, q.font);
     L.answers.forEach((a, i) => this.answers[i].place(a.x, a.y, a.w, a.h, L.answerPt));
+    this.refitText();
 
-    this.keyHints.view.position.set(L.action.cx - 310, L.action.cy - 20);
     put(this.confirm, L.confirm);
     this.confirm.baked.invalidate();
-    const F = L.feedback;
-    this.verdict.view.position.set(F.verdict.x, F.verdict.y);
-    this.verdict.resize(F.verdict.w, F.verdict.h);
-    this.explain.style.fontSize = F.font;
-    this.explain.style.lineHeight = Math.round(F.font * 1.32);
-    this.explain.style.wordWrapWidth = F.explain.w;
-    this.explain.position.set(F.explain.x, F.explain.y + F.explain.h / 2);
-    if (L.portrait) {
-      this.explain.anchor.set(0.5, 0.5);
-      this.explain.style.align = 'center';
-      this.explain.x = F.explain.x + F.explain.w / 2;
-    } else {
-      this.explain.anchor.set(0, 0.5);
-      this.explain.style.align = 'left';
-    }
-    put(this.next, F.next);
-    this.next.baked.invalidate();
+    this.review.next.baked.invalidate();
 
     this.timer.place(L.timer.cx, L.timer.cy, L.timer.r);
     this.head.view.position.set(L.head.x, L.head.y);
@@ -218,29 +201,51 @@ export class Scene {
   }
 
   setActionMode(m: ActionMode) {
-    this.keyHints.view.visible = m === 'hints' && !this.layout.portrait;
     this.confirm.view.visible = m === 'confirm';
-    this.feedback.visible = m === 'feedback';
+    this.review.view.visible = m === 'feedback';
   }
 
-  /** Açıklama yoksa rozet ve düğme ortalanır. */
-  setFeedback(verdict: Verdict, explanation: string, last: boolean) {
-    this.verdict.setState(verdict);
-    this.explain.text = explanation;
-    this.next.setVariant(last ? 'result' : 'next');
-    const F = this.layout.feedback;
-    if (this.layout.portrait) {
-      const gap = 16;
-      const total = F.verdict.w + gap + F.next.w;
-      const x0 = (this.layout.W - total) / 2;
-      const y = explanation ? F.verdict.y : F.verdict.y - 30;
-      this.verdict.view.position.set(x0, y);
-      this.next.view.position.set(x0 + F.verdict.w + gap, y);
-    }
+  // ---------- yazı boyutları ----------
+
+  /** Oyunun soru havuzu değişince çağrılır; yazı boyutları tüm havuza göre bir kez seçilir. */
+  setTextPool(pool: TextPool) {
+    this.pool = pool;
+    this.refitText();
+  }
+
+  /** Soru, şık ve açıklama yazıları için sorudan soruya değişmeyen tek bir boyut seçer. */
+  private refitText() {
+    const qb = this.question;
+    const qa = qb.textArea;
+    const qSize = this.pool.questions.length
+      ? uniformSize(this.pool.questions, QuestionBox.STYLE, qa.w, qa.h, steps(qb.baseFont, [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.64, 0.58]), QuestionBox.LINE)
+      : qb.baseFont;
+    qb.setFontSize(qSize);
+
+    // en dar şık kutusu belirleyicidir; dört şık da aynı boyutu kullanır
+    const aw = Math.min(...this.answers.map((a) => a.textArea.w));
+    const ah = Math.min(...this.answers.map((a) => a.textArea.h));
+    const aSize = this.pool.answers.length
+      ? uniformSize(this.pool.answers, AnswerBox.STYLE, aw, ah, AnswerBox.SIZES, AnswerBox.LINE)
+      : AnswerBox.SIZES[0];
+    for (const a of this.answers) a.setFontSize(aSize);
+    this.review.setLayout(this.layout, aSize);
+
+    // açıklamalar en fazla `lines` satıra sığacak tek bir boyutla yazılır
+    const { font: f, lines } = this.layout.feedback;
+    const maxH = Math.ceil(f * 1.45 + (lines - 1) * f * WHY_LINE) + 2;
+    const eSize = this.pool.explanations.length
+      ? uniformSize(this.pool.explanations, {}, this.review.whyWidth, maxH, steps(f, [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7]), WHY_LINE)
+      : f;
+    this.review.setWhyFont(eSize);
+  }
+
+  /** Cevap açıklandı: açıklama ekranı ortada açılır. */
+  setFeedback(verdict: Verdict, rows: ReviewRow[], action: ReviewAction) {
+    this.review.show(verdict, rows, action);
   }
 
   update(dt: number) {
-    this.bg.update(dt);
     this.head.update(dt);
   }
 }

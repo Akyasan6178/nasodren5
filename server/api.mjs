@@ -19,12 +19,18 @@ function cleanQuestion(input, existing) {
     kategori: str(input.kategori, 60),
     ipucu: str(input.ipucu, 300),
     aciklama: str(input.aciklama, 400),
+    yanlisAciklamalar: [0, 1, 2].map((i) => str(Array.isArray(input.yanlisAciklamalar) ? input.yanlisAciklamalar[i] : '', 300)),
     aktif: input.aktif !== false,
     olusturma: existing?.olusturma ?? new Date().toISOString(),
   };
+  // tüm alanlar zorunlu (src/shared/store.ts içindeki validate ile aynı kurallar)
   if (!q.soru) return { error: 'Soru metni boş olamaz.' };
+  if (!q.kategori) return { error: 'Kategori boş olamaz.' };
   if (!q.dogru) return { error: 'Doğru cevap boş olamaz.' };
+  if (!q.aciklama) return { error: 'Doğru cevabın neden doğru olduğunu yazın.' };
   if (q.yanlislar.length !== 3 || q.yanlislar.some((y) => !y)) return { error: 'Üç yanlış cevap girilmelidir.' };
+  if (q.yanlisAciklamalar.some((y) => !y)) return { error: 'Her yanlış cevabın neden yanlış olduğunu yazın.' };
+  if (!q.ipucu) return { error: 'İpucu boş olamaz.' };
   const all = [q.dogru, ...q.yanlislar].map((s) => s.toLocaleLowerCase('tr'));
   if (new Set(all).size !== 4) return { error: 'Cevap şıkları birbirinden farklı olmalıdır.' };
   return { q };

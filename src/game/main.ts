@@ -6,7 +6,7 @@ import '@fontsource/poppins/800.css';
 import '@fontsource/poppins/900.css';
 import { Application, Text } from 'pixi.js';
 import { flushBakes, setDensity, text } from './render/bake';
-import { loadLogo } from './render/draw';
+import { loadHeadArt } from './render/head';
 import { pickLayout } from './render/layout';
 import { Scene, type SceneHandlers } from './render/scene';
 import { Game } from './game';
@@ -34,7 +34,7 @@ async function boot() {
       powerPreference: 'high-performance',
     }),
     loadFonts(),
-    loadLogo(`${import.meta.env.BASE_URL}img/siklamen.svg`),
+    loadHeadArt(import.meta.env.BASE_URL),
   ]);
   document.getElementById('app')!.appendChild(app.canvas);
 

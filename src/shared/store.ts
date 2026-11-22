@@ -8,7 +8,10 @@ export interface Question {
   yanlislar: string[];
   kategori?: string;
   ipucu?: string;
+  /** Doğru cevabın neden doğru olduğu (cevaptan sonra gösterilir). */
   aciklama?: string;
+  /** Her yanlış şıkkın neden yanlış olduğu; `yanlislar` ile aynı sırada. */
+  yanlisAciklamalar?: string[];
   aktif?: boolean;
   olusturma?: string;
 }
@@ -69,10 +72,16 @@ async function localQuestions(): Promise<Question[]> {
   return seed;
 }
 
-export function validate(q: Pick<Question, 'soru' | 'dogru' | 'yanlislar'>): string | null {
-  if (!q.soru?.trim()) return 'Soru metni boş olamaz.';
-  if (!q.dogru?.trim()) return 'Doğru cevap boş olamaz.';
-  if (!Array.isArray(q.yanlislar) || q.yanlislar.length !== 3 || q.yanlislar.some((y) => !y?.trim())) return 'Üç yanlış cevap girilmelidir.';
+/** Tüm alanlar zorunludur; sunucudaki cleanQuestion ile aynı kurallar. */
+export function validate(q: Pick<Question, 'soru' | 'dogru' | 'yanlislar' | 'kategori' | 'ipucu' | 'aciklama' | 'yanlisAciklamalar'>): string | null {
+  const empty = (s?: string) => !s?.trim();
+  if (empty(q.soru)) return 'Soru metni boş olamaz.';
+  if (empty(q.kategori)) return 'Kategori boş olamaz.';
+  if (empty(q.dogru)) return 'Doğru cevap boş olamaz.';
+  if (empty(q.aciklama)) return 'Doğru cevabın neden doğru olduğunu yazın.';
+  if (!Array.isArray(q.yanlislar) || q.yanlislar.length !== 3 || q.yanlislar.some(empty)) return 'Üç yanlış cevap girilmelidir.';
+  if (!Array.isArray(q.yanlisAciklamalar) || q.yanlisAciklamalar.length !== 3 || q.yanlisAciklamalar.some(empty)) return 'Her yanlış cevabın neden yanlış olduğunu yazın.';
+  if (empty(q.ipucu)) return 'İpucu boş olamaz.';
   const all = [q.dogru, ...q.yanlislar].map((s) => s.trim().toLocaleLowerCase('tr'));
   if (new Set(all).size !== 4) return 'Cevap şıkları birbirinden farklı olmalıdır.';
   return null;

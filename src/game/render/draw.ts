@@ -14,10 +14,16 @@ export const C = {
 
 export const font = (weight: number, size: number) => `${weight} ${size}px Poppins, sans-serif`;
 
+/**
+ * Neon ışıma şiddeti. Ekranda göz alan unsurları azaltmak için tüm ışımalar bu katsayıyla
+ * kısılır (1 = ilk tasarımdaki parlaklık).
+ */
+export const GLOW_SCALE = 0.35;
+
 /** shadowBlur dönüşümden etkilenmez; tasarım birimini cihaz pikseline çevirir. */
 export function glow(ctx: CanvasRenderingContext2D, color: string, blur: number, r: number) {
   ctx.shadowColor = color;
-  ctx.shadowBlur = blur * r;
+  ctx.shadowBlur = blur * r * GLOW_SCALE;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 }
@@ -60,7 +66,7 @@ export function spaced(ctx: CanvasRenderingContext2D, str: string, x: number, y:
 
 /** Neon çerçeveli kapsül düğme. */
 export function neonPill(ctx: CanvasRenderingContext2D, w: number, h: number, r: number, hot = false, dim = false) {
-  const lw = 2.6;
+  const lw = 2;
   pillPath(ctx, lw / 2, lw / 2, w - lw, h - lw);
   ctx.fillStyle = hot ? 'rgba(28, 58, 120, 0.75)' : 'rgba(8, 10, 40, 0.62)';
   ctx.fill();
@@ -71,18 +77,6 @@ export function neonPill(ctx: CanvasRenderingContext2D, w: number, h: number, r:
   ctx.lineWidth = lw;
   ctx.stroke();
   noGlow(ctx);
-  // iç parıltı
-  if (!dim) {
-    ctx.save();
-    pillPath(ctx, lw / 2, lw / 2, w - lw, h - lw);
-    ctx.clip();
-    glow(ctx, 'rgba(60,220,255,0.35)', 10, r);
-    ctx.strokeStyle = 'rgba(60,220,255,0.35)';
-    ctx.lineWidth = 2;
-    pillPath(ctx, -1, -1, w + 2, h + 2);
-    ctx.stroke();
-    ctx.restore();
-  }
 }
 
 // ---------- simgeler (24×24 kutuda SVG yolları) ----------
@@ -106,7 +100,8 @@ const ICONS = {
       'M9.5 18.2h5v1.4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2z',
     ],
   },
-  skip: { fill: ['M2.5 5.5v13l9-6.5z', 'M12 5.5v13l9-6.5z'] },
+  // çift onay işareti: iki cevap hakkı
+  double: { stroke: ['M2 12.5l4.5 4.5L15.5 7', 'M11 16l1 1L21 7'] },
   next: { stroke: ['M5 12h13', 'M13 6l6 6-6 6'] },
 } satisfies Record<string, { fill?: string[]; stroke?: string[] }>;
 
@@ -126,12 +121,3 @@ export function icon(ctx: CanvasRenderingContext2D, name: IconName, x: number, y
   for (const d of def.stroke ?? []) ctx.stroke(new Path2D(d));
   ctx.restore();
 }
-
-let logoImg: HTMLImageElement | null = null;
-export async function loadLogo(url: string) {
-  const img = new Image();
-  img.src = url;
-  await img.decode().catch(() => undefined);
-  logoImg = img.complete && img.naturalWidth ? img : null;
-}
-export const getLogo = () => logoImg;

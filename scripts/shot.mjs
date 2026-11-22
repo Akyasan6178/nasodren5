@@ -25,7 +25,7 @@ async function run(name, viewport, opts = {}) {
   await page.waitForTimeout(250);
   await page.screenshot({ path: `${out}/${name}-2-secim.png` });
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(2400);
+  await page.waitForTimeout(3200);
   await page.screenshot({ path: `${out}/${name}-3-sonuc.png` });
   if (opts.extra) await opts.extra(page, name);
   await ctx.close();

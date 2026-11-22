@@ -94,7 +94,7 @@ function renderStats() {
   $('stats').innerHTML = cards.map(([v, l]) => `<div class="card stat"><b>${v}</b><span>${l}</span></div>`).join('');
   if (active < settings.questionsPerGame) {
     $('stats').insertAdjacentHTML('beforeend',
-      `<div class="card stat" style="border-color:rgba(255,190,60,.5)"><b style="color:#ffd27a">!</b><span>Aktif soru sayısı (${active}), oyun başına soru sayısından (${settings.questionsPerGame}) az. Oyun ${active} soruyla oynanır; "Soruyu geç" jokeri için yedek soru kalmaz.</span></div>`);
+      `<div class="card stat" style="border-color:rgba(255,190,60,.5)"><b style="color:#ffd27a">!</b><span>Aktif soru sayısı (${active}), oyun başına soru sayısından (${settings.questionsPerGame}) az. Oyun ${active} soruyla oynanır.</span></div>`);
   }
 }
 
@@ -147,6 +147,8 @@ function renderSettings() {
 // ---------- soru formu ----------
 
 const form = $<HTMLFormElement>('q-form');
+/** Formdaki zorunlu alanlar (boş kalanlar kırmızıyla işaretlenir). */
+const REQUIRED = ['soru', 'kategori', 'dogru', 'aciklama', 'y0', 'w0', 'y1', 'w1', 'y2', 'w2', 'ipucu'];
 const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
 
 function readForm(): Omit<Question, 'id'> {
@@ -157,6 +159,7 @@ function readForm(): Omit<Question, 'id'> {
     kategori: field('kategori').value.trim(),
     ipucu: field('ipucu').value.trim(),
     aciklama: field('aciklama').value.trim(),
+    yanlisAciklamalar: [0, 1, 2].map((i) => field(`w${i}`).value.trim()),
     aktif: field('aktif').checked,
   };
 }
@@ -169,8 +172,8 @@ function fillForm(q: Question | null) {
   field('kategori').value = q?.kategori ?? '';
   field('ipucu').value = q?.ipucu ?? '';
   field('aciklama').value = q?.aciklama ?? '';
+  [0, 1, 2].forEach((i) => { field(`w${i}`).value = q?.yanlisAciklamalar?.[i] ?? ''; });
   field('aktif').checked = q ? q.aktif !== false : true;
-  form.querySelector('details')!.open = !!(q?.kategori || q?.ipucu || q?.aciklama);
   $('form-title').textContent = q ? 'Soruyu düzenle' : 'Yeni soru ekle';
   $('form-submit').textContent = q ? 'Değişiklikleri kaydet' : 'Soruyu kaydet';
   $('form-cancel').hidden = !q;
@@ -188,7 +191,7 @@ form.addEventListener('submit', async (ev) => {
   if (err) {
     $('form-error').textContent = err;
     $('form-error').hidden = false;
-    for (const n of ['soru', 'dogru', 'y0', 'y1', 'y2']) if (!field(n).value.trim()) field(n).setAttribute('aria-invalid', 'true');
+    for (const n of REQUIRED) if (!field(n).value.trim()) field(n).setAttribute('aria-invalid', 'true');
     return;
   }
   const btn = $<HTMLButtonElement>('form-submit');
