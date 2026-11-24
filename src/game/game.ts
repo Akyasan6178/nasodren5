@@ -33,13 +33,21 @@ export class Game {
   private token = 0; // yeni oyun başlayınca bekleyen zamanlayıcıları geçersiz kılar
   private timeLeft = 0;
   private timerOn = false;
-  private modalMode: 'start' | 'result' = 'start';
+  private modalMode: 'start' | 'result' | 'pause' = 'start';
+  /** Mola: süre ve müzik durur, soru gizlenir. */
+  private paused = false;
+  /** Geçiş animasyonu sırasında basılan duraklatma, animasyon bitince uygulanır. */
+  private pendingPause = false;
+  private pausedTimer = false;
+  private pausedHidden: { visible: boolean }[] = [];
 
   constructor(private readonly scene: Scene) {
     scene.btnSound.setVariant(isSoundOn() ? 'on' : 'off');
     if (!document.fullscreenEnabled) scene.btnFull.view.visible = false;
     window.addEventListener('keydown', (e) => this.onKey(e));
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    // sekme/uygulama değişince (telefonda arama gelince vb.) oyun kendiliğinden molaya girer
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.requestPause(); });
   }
 
   // ---------- akış ----------
@@ -49,6 +57,10 @@ export class Game {
     const t = ++this.token;
     this.busy = true;
     this.retryPending = -1;
+    this.paused = false;
+    this.pendingPause = false;
+    for (const o of this.pausedHidden) o.visible = true; // moladan çıkılmadan yeni oyuna geçildiyse
+    this.pausedHidden = [];
     this.stopClock();
     music.stop();
     let pool: Question[] = [];
@@ -97,11 +109,12 @@ export class Game {
     s.setActionMode('none');
     this.setTagline(TAGLINE);
     this.modalMode = 'start';
-    s.mEyebrow.text = 'SİKLAMEN BİLGİ OYUNU';
+    s.mEyebrow.text = 'KİM NEFES ALMAK İSTER?';
     s.mTitle.text = 'Hazır mısınız?';
     s.mScore.text = q.seconds > 0 ? `${q.total} soru · her soru için ${q.seconds} saniye` : `${q.total} soru`;
     s.mBody.text = '50:50, İpucu ve Çift cevap jokerlerinden birer hakkınız var. Doğru cevap verdikçe sinüs kanalları açılır.';
     s.mNew.setVariant('start');
+    s.setModalKind('menu');
     this.showModal();
   }
 
@@ -147,11 +160,63 @@ export class Game {
   private beginQuestion() {
     const q = this.quiz;
     if (!q) return;
-    this.busy = false;
     this.timeLeft = q.seconds;
     this.timerOn = q.seconds > 0;
     music.start();
     music.setIntensity(this.timerOn ? 0 : 0.2);
+    this.settle();
+  }
+
+  /** Geçiş bitti, girdi yeniden açılır; bu arada duraklatma istendiyse şimdi uygulanır. */
+  private settle() {
+    this.busy = false;
+    if (this.pendingPause) {
+      this.pendingPause = false;
+      this.pause();
+    }
+  }
+
+  // ---------- mola ----------
+
+  private requestPause() {
+    if (!this.quiz || this.paused || this.scene.modal.visible) return;
+    if (this.busy) this.pendingPause = true;
+    else this.pause();
+  }
+
+  private pause() {
+    const q = this.quiz;
+    const s = this.scene;
+    if (!q || this.paused || s.modal.visible) return;
+    this.paused = true;
+    this.pausedTimer = this.timerOn;
+    this.timerOn = false;
+    music.stop();
+    // soru, şıklar ve ipucu mola boyunca gizlenir: mola düşünme süresine dönüşmesin
+    this.pausedHidden = [s.board, s.review.view, s.confirm.view, s.tagline].filter((o) => o.visible);
+    for (const o of this.pausedHidden) o.visible = false;
+    this.modalMode = 'pause';
+    s.mEyebrow.text = 'OYUN DURAKLATILDI';
+    s.mTitle.text = 'Mola';
+    s.mScore.text = `Soru ${q.index + 1} / ${q.total}${this.pausedTimer ? ` · ${Math.ceil(this.timeLeft)} sn kaldı` : ''}`;
+    s.mBody.text = 'Soru ve şıklar mola boyunca gizlenir. Kaldığınız yerden devam edebilir ya da ana menüye dönebilirsiniz (bu oyundaki ilerleme silinir).';
+    s.mNew.setVariant('resume');
+    s.setModalKind('pause');
+    this.showModal();
+  }
+
+  private resume() {
+    const q = this.quiz;
+    if (!this.paused || !q) return;
+    this.paused = false;
+    this.hideModal();
+    for (const o of this.pausedHidden) o.visible = true;
+    this.pausedHidden = [];
+    this.timerOn = this.pausedTimer && this.timeLeft > 0;
+    if (q.phase === 'answering' && this.retryPending < 0) {
+      music.start(true);
+      music.setIntensity(this.timerOn ? 1 - this.timeLeft / q.seconds : 0.2);
+    }
   }
 
   private stopClock() {
@@ -259,10 +324,10 @@ export class Game {
     this.setTagline('Yanlış! Çift cevap jokeri sayesinde bir hakkınız daha var.', 'double');
     s.answers.forEach((a) => a.setInteractive(true));
     s.setActionMode('hints');
-    this.busy = false;
     this.timerOn = q.seconds > 0 && this.timeLeft > 0;
     music.start();
     music.setIntensity(this.timerOn ? 1 - this.timeLeft / q.seconds : 0.2);
+    this.settle();
   }
 
   private async onTimeout() {
@@ -312,7 +377,7 @@ export class Game {
     });
     this.scene.setActionMode('feedback');
     this.scene.setFeedback(v, rows, q.phase === 'over' ? 'result' : 'next');
-    this.busy = false;
+    this.settle();
   }
 
   private async advance() {
@@ -343,6 +408,7 @@ export class Game {
       ? 'Tüm soruları doğru bildiniz. Sinüs kanalları %100 açık!'
       : `Sinüs kanallarını %${pct} açtınız. Bilgilerinizi tazeleyip yeniden deneyin.`;
     s.mNew.setVariant('n');
+    s.setModalKind('menu');
     this.showModal();
   }
 
@@ -461,8 +527,26 @@ export class Game {
     onModal: () => {
       unlockAudio();
       play('click');
-      if (this.modalMode === 'start') void this.begin();
+      if (this.modalMode === 'pause') this.resume();
+      else if (this.modalMode === 'start') void this.begin();
       else void this.start();
+    },
+    onHome: () => {
+      play('click');
+      music.stop();
+      this.scene.modal.visible = false;
+      void this.intro(); // oyun sıfırlanır, "Hazır mısınız?" başlangıç ekranı açılır
+    },
+    onPause: () => {
+      unlockAudio();
+      play('click');
+      if (this.paused) this.resume();
+      else this.requestPause();
+    },
+    onMulti: () => {
+      play('click');
+      music.stop();
+      location.href = `${import.meta.env.BASE_URL}katil.html`; // PIN ile katıl ya da oyun oluştur
     },
   };
 
@@ -472,6 +556,11 @@ export class Game {
     const k = e.key.toLocaleLowerCase('tr');
     const letters = ['a', 'b', 'c', 'd'].indexOf(k);
     const idx = letters >= 0 ? letters : ['1', '2', '3', '4'].indexOf(k);
+    // P ya da Esc: duraklat / devam et
+    if (k === 'p' || k === 'escape') {
+      if (this.paused || !this.scene.modal.visible) { e.preventDefault(); this.handlers.onPause(); }
+      return;
+    }
     if (this.scene.modal.visible) {
       if (k === 'enter' || k === ' ') { e.preventDefault(); this.handlers.onModal(); }
       return;

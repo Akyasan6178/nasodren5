@@ -103,6 +103,8 @@ const ICONS = {
   // çift onay işareti: iki cevap hakkı
   double: { stroke: ['M2 12.5l4.5 4.5L15.5 7', 'M11 16l1 1L21 7'] },
   next: { stroke: ['M5 12h13', 'M13 6l6 6-6 6'] },
+  home: { stroke: ['M3.5 11.5L12 4.5l8.5 7', 'M6 9.8v9.7h12V9.8', 'M10 19.5v-5h4v5'] },
+  pause: { fill: ['M6.5 4.5h4v15h-4z', 'M13.5 4.5h4v15h-4z'] },
 } satisfies Record<string, { fill?: string[]; stroke?: string[] }>;
 
 export type IconName = keyof typeof ICONS;

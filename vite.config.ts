@@ -16,7 +16,9 @@ function apiPlugin(): Plugin {
         }),
       );
       server.middlewares.use((req, _res, next) => {
-        if (req.url === '/admin' || req.url === '/yonetim') req.url = '/admin.html';
+        const [path, query = ''] = (req.url ?? '').split('?');
+        const page = { '/admin': 'admin', '/yonetim': 'admin', '/canli': 'canli', '/cok-oyunculu': 'canli', '/katil': 'katil', '/k': 'katil' }[path];
+        if (page) req.url = `/${page}.html${query ? `?${query}` : ''}`;
         next();
       });
     },
@@ -29,7 +31,12 @@ export default defineConfig({
   build: {
     target: 'es2022',
     rollupOptions: {
-      input: { oyun: resolve(import.meta.dirname, 'index.html'), admin: resolve(import.meta.dirname, 'admin.html') },
+      input: {
+        oyun: resolve(import.meta.dirname, 'index.html'),
+        admin: resolve(import.meta.dirname, 'admin.html'),
+        canli: resolve(import.meta.dirname, 'canli.html'),
+        katil: resolve(import.meta.dirname, 'katil.html'),
+      },
     },
   },
 });

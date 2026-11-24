@@ -33,7 +33,8 @@ class Music {
   private intensity = 0;
   private playing = false;
 
-  start() {
+  /** resume: moladan dönüşte tema baştan değil, kaldığı yerden çalar. */
+  start(resume = false) {
     const a = audioOut();
     if (!a) return;
     if (!this.gain) {
@@ -44,7 +45,7 @@ class Music {
     this.gain.gain.cancelScheduledValues(t);
     this.gain.gain.setValueAtTime(0.0001, t);
     this.gain.gain.exponentialRampToValueAtTime(0.55, t + 0.15);
-    this.step = 0;
+    if (!resume) this.step = 0;
     this.nextTime = t + 0.06;
     this.intensity = 0;
     this.playing = true;

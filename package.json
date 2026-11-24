@@ -8,11 +8,13 @@
     "build": "tsc --noEmit && vite build",
     "start": "node server.mjs",
     "typecheck": "tsc --noEmit",
-    "test:visual": "node scripts/shot.mjs http://localhost:5173/ shots"
+    "test:visual": "node scripts/shot.mjs http://localhost:5173/ shots",
+    "test:canli": "node scripts/canli-shot.mjs http://localhost:5173 shots"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.3.0",
-    "pixi.js": "^8.22.0"
+    "pixi.js": "^8.22.0",
+    "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

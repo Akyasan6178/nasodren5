@@ -8,6 +8,12 @@ export function createChrome(getLayout: () => Layout): Baked {
   return new Baked(getLayout().W, getLayout().H, 0, (ctx, _s, r) => drawChrome(ctx, getLayout(), r));
 }
 
+/** `spaced` ile yazılacak metnin genişliği (çizmeden). */
+function spacedWidth(ctx: CanvasRenderingContext2D, str: string, spacing: number) {
+  const chars = [...str];
+  return chars.reduce((a, c) => a + ctx.measureText(c).width, 0) + spacing * (chars.length - 1);
+}
+
 function drawChrome(ctx: CanvasRenderingContext2D, L: Layout, r: number) {
   ctx.textBaseline = 'alphabetic';
 
@@ -15,20 +21,36 @@ function drawChrome(ctx: CanvasRenderingContext2D, L: Layout, r: number) {
   ctx.fillStyle = 'rgba(255,255,255,0.09)';
   ctx.fillRect(L.sep.x0, L.sep.y, L.sep.x1 - L.sep.x0, 1);
 
-  // başlık
+  // başlık: "KİM NEFES" (büyük; KİM beyaz, NEFES pembe) + "ALMAK İSTER?" (aralıklı alt satır).
+  // Yazılar eski "SİKLAMEN / BİLGİ OYUNU" başlığının genişliğine sığdırılır; sayaç ve süreyle çakışmaz.
   const T = L.title;
+  const fit = (str: string, weight: number, size: number, spacingK: number, maxW: number) => {
+    ctx.font = font(weight, size);
+    const w = spacedWidth(ctx, str, size * spacingK);
+    return w > maxW ? size * (maxW / w) : size;
+  };
   ctx.font = font(900, T.brandSize);
-  const sp = -T.brandSize * 0.015;
-  // "SİKLAMEN" baştan sona aynı pembe gradyanla yazılır
-  const pg = ctx.createLinearGradient(0, T.brandY - T.brandSize * 0.75, 0, T.brandY);
+  const brandMax = spacedWidth(ctx, 'SİKLAMEN', -T.brandSize * 0.015);
+  const bs = fit('KİM NEFES', 900, T.brandSize, -0.015, brandMax);
+  ctx.font = font(900, bs);
+  const sp = -bs * 0.015;
+  const pg = ctx.createLinearGradient(0, T.brandY - bs * 0.75, 0, T.brandY);
   pg.addColorStop(0, '#ff56aa');
   pg.addColorStop(1, '#ff1b7a');
+  const head = 'KİM ';
+  const total = spacedWidth(ctx, 'KİM NEFES', sp);
+  const x0 = T.cx - total / 2;
+  ctx.fillStyle = C.white;
+  spaced(ctx, head, x0, T.brandY, sp, 'left');
   ctx.fillStyle = pg;
-  spaced(ctx, 'SİKLAMEN', T.cx, T.brandY, sp, 'center');
+  spaced(ctx, 'NEFES', x0 + spacedWidth(ctx, head, sp) + sp, T.brandY, sp, 'left');
 
   ctx.font = font(800, T.subSize);
+  const subMax = spacedWidth(ctx, 'BİLGİ OYUNU', T.subSize * 0.55);
+  const ss = fit('ALMAK İSTER?', 800, T.subSize, 0.55, subMax);
+  ctx.font = font(800, ss);
   ctx.fillStyle = C.white;
-  spaced(ctx, 'BİLGİ OYUNU', T.cx, T.subY, T.subSize * 0.55, 'center');
+  spaced(ctx, 'ALMAK İSTER?', T.cx, T.subY, ss * 0.55, 'center');
 
   // soru sayacı çerçevesi
   const k = L.counter;

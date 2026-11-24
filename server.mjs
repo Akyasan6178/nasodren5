@@ -33,6 +33,8 @@ async function serveStatic(req, res) {
   let { pathname } = new URL(req.url, 'http://x');
   if (pathname === '/') pathname = '/index.html';
   if (pathname === '/admin' || pathname === '/yonetim') pathname = '/admin.html';
+  if (pathname === '/canli' || pathname === '/cok-oyunculu') pathname = '/canli.html';
+  if (pathname === '/katil' || pathname === '/k') pathname = '/katil.html';
   const file = normalize(join(DIST, decodeURIComponent(pathname)));
   if (file !== DIST && !file.startsWith(DIST + sep)) {
     res.writeHead(403).end();
@@ -54,5 +56,6 @@ async function serveStatic(req, res) {
 createServer((req, res) => api(req, res, () => serveStatic(req, res))).listen(PORT, () => {
   console.log(`Oyun:            http://localhost:${PORT}/`);
   console.log(`Yönetici paneli: http://localhost:${PORT}/admin`);
+  console.log(`Çok oyunculu:    http://localhost:${PORT}/canli  (oyuncular: /katil)`);
   if (!process.env.ADMIN_PASSWORD) console.log(`Uyarı: varsayılan yönetici şifresi "${ADMIN_PASSWORD}". ADMIN_PASSWORD ile değiştirin.`);
 });

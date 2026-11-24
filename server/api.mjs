@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID, timingSafeEqual, createHash } from 'node:crypto';
+import { createLive } from './canli.mjs';
 
 const DEFAULT_SETTINGS = { questionsPerGame: 15, endOnWrong: true, secondsPerQuestion: 30 };
 const DEFAULT_STATS = { games: 0, finished: 0, totalCorrect: 0, perQuestion: {} };
@@ -99,16 +100,38 @@ export function createApi({ dataDir, seedFile, adminPassword }) {
     if (!existsSync(files.questions)) await save('questions', JSON.parse(await readFile(seedFile, 'utf8')));
   }
 
+  // Soru başına başarı oranına canlı yarışmadaki cevaplar da eklenir.
+  // (games/totalCorrect tek kişilik oyunların ortalaması için kullanıldığından onlara dokunulmaz.)
+  async function recordAnswers(answers) {
+    const stats = await load('stats', DEFAULT_STATS);
+    for (const a of answers) {
+      if (typeof a?.id !== 'string') continue;
+      const s = (stats.perQuestion[a.id] ??= { asked: 0, correct: 0 });
+      s.asked += 1;
+      if (a.correct) s.correct += 1;
+    }
+    await save('stats', stats);
+  }
+
+  async function getGame() {
+    const [questions, settings] = await Promise.all([load('questions', []), load('settings', DEFAULT_SETTINGS)]);
+    return { questions: questions.filter((q) => q.aktif), settings: { ...DEFAULT_SETTINGS, ...settings } };
+  }
+
+  const live = createLive({ getGame, recordAnswers });
+
   const isAdmin = (req) =>
     timingSafeEqual(createHash('sha256').update(String(req.headers['x-admin-key'] ?? '')).digest(), realKey);
 
-  async function route(req, res, pathname) {
+  async function route(req, res, pathname, query) {
     const method = req.method;
 
     // Herkese açık uçlar (oyun ekranı)
-    if (method === 'GET' && pathname === '/api/oyun') {
-      const [questions, settings] = await Promise.all([load('questions', []), load('settings', DEFAULT_SETTINGS)]);
-      return send(res, 200, { questions: questions.filter((q) => q.aktif), settings: { ...DEFAULT_SETTINGS, ...settings } });
+    if (method === 'GET' && pathname === '/api/oyun') return send(res, 200, await getGame());
+    // Çok oyunculu canlı yarışma (server/canli.mjs)
+    if (pathname.startsWith('/api/canli/')) {
+      if (await live(req, res, pathname, query, { send, readBody })) return;
+      return send(res, 404, { error: 'Bulunamadı' });
     }
     if (method === 'POST' && pathname === '/api/sonuc') {
       const body = await readBody(req);
@@ -185,13 +208,14 @@ export function createApi({ dataDir, seedFile, adminPassword }) {
   }
 
   return async (req, res, next) => {
-    const { pathname } = new URL(req.url, 'http://x');
+    const { pathname, searchParams } = new URL(req.url, 'http://x');
     if (!pathname.startsWith('/api/')) return next?.();
     try {
       await (ready ??= init());
-      await route(req, res, pathname);
+      await route(req, res, pathname, searchParams);
     } catch (err) {
-      send(res, 500, { error: err.message || 'Sunucu hatası' });
+      if (res.headersSent) return void res.end(); // akış açıldıktan sonra JSON hata gönderilemez
+      send(res, err.status || 500, { error: err.message || 'Sunucu hatası' });
     }
   };
 }

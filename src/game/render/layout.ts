@@ -11,6 +11,8 @@ export interface Layout {
   btnNew: Rect;
   btnSound: Rect;
   btnFull: Rect;
+  /** Oyunu duraklatma düğmesi. */
+  btnPause: Rect;
   lifelines: [Rect, Rect, Rect];
   lifelineFont: number;
   title: { cx: number; brandY: number; brandSize: number; subY: number; subSize: number };
@@ -44,6 +46,7 @@ export const LANDSCAPE: Layout = {
   btnNew: r(800, 14, 190, 56),
   btnSound: r(1008, 14, 64, 56),
   btnFull: r(1090, 14, 64, 56),
+  btnPause: r(718, 14, 64, 56),
   // jokerler üst satırda, "Yeni oyun" ile aynı hizada
   lifelines: [r(30, 14, 138, 56), r(182, 14, 120, 56), r(316, 14, 156, 56)],
   lifelineFont: 17,
@@ -72,6 +75,8 @@ export const PORTRAIT: Layout = {
   btnNew: r(536, 26, 164, 54),
   btnSound: r(714, 26, 66, 54),
   btnFull: r(794, 26, 66, 54),
+  // üst satır dolu: duraklatma, başlığın solunda süre sayacının simetriğinde durur
+  btnPause: r(61, 291, 66, 54),
   lifelines: [r(24, 26, 150, 54), r(186, 26, 136, 54), r(334, 26, 182, 54)],
   lifelineFont: 19,
   title: { cx: 450, brandY: 328, brandSize: 98, subY: 370, subSize: 28 },
@@ -106,6 +111,7 @@ function makePortrait(H: number): Layout {
   P.lifelines.forEach((l) => dy(l, 0.04));
   const t = Math.round(e * 0.14);
   P.title.brandY += t; P.title.subY += t;
+  dy(P.btnPause, 0.14);
   dy(P.counter, 0.14); dy(P.tagline, 0.14); dc(P.timer, 0.14);
   dy(P.panel, 0.24); dy(P.head, 0.24); dc(P.panelTitle, 0.24); dc(P.percent, 0.24);
   dy(P.question, 0.38);

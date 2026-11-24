@@ -21,6 +21,9 @@ export interface SceneHandlers {
   onConfirm(): void;
   onNext(): void;
   onModal(): void;
+  onMulti(): void;
+  onPause(): void;
+  onHome(): void;
 }
 
 export type ActionMode = 'hints' | 'confirm' | 'feedback' | 'none';
@@ -38,6 +41,7 @@ export class Scene {
   readonly btnNew: Button;
   readonly btnSound: Button<'on' | 'off'>;
   readonly btnFull: Button;
+  readonly btnPause: Button;
   readonly lifelines: Record<Lifeline, Button<'n' | 'used'>>;
   readonly counter: Text;
   readonly tagline: Text;
@@ -59,7 +63,11 @@ export class Scene {
   readonly mTitle: Text;
   readonly mScore: Text;
   readonly mBody: Text;
-  readonly mNew: Button<'n' | 'start'>;
+  readonly mNew: Button<'n' | 'start' | 'resume'>;
+  /** Çok oyunculu mod ("Kim Nefes Almak İster?") sunucu ekranına geçer. */
+  readonly mMulti: Button;
+  /** Mola penceresinden başlangıç ekranına dönüş. */
+  readonly mHome: Button;
 
   constructor(layout: Layout, h: SceneHandlers) {
     this.layout = layout;
@@ -68,6 +76,7 @@ export class Scene {
     this.btnNew = new Button(190, 56, ['n'], neonButton('Yeni oyun', 'refresh', 20), h.onNew);
     this.btnSound = new Button(64, 56, ['on', 'off'], neonButton('', (v) => (v === 'off' ? 'mute' : 'speaker'), 20), h.onSound);
     this.btnFull = new Button(64, 56, ['n'], neonButton('', 'fullscreen', 20), h.onFull);
+    this.btnPause = new Button(64, 56, ['n'], neonButton('', 'pause', 20), h.onPause);
     const ll = (label: string, ic: 'people' | 'bulb' | 'double', k: Lifeline) =>
       new Button(140, 56, ['n', 'used'], neonButton(label, ic, 17, { badge: true }), () => h.onLifeline(k), 26, { lift: 0.05 });
     this.lifelines = { fifty: ll('50:50', 'people', 'fifty'), hint: ll('İpucu', 'bulb', 'hint'), double: ll('Çift cevap', 'double', 'double') };
@@ -117,8 +126,10 @@ export class Scene {
     this.mScore = text({ fontSize: 30, fontWeight: '700' });
     this.mBody = text({ fontSize: 19, fill: C.muted, align: 'center', wordWrap: true, wordWrapWidth: 540, lineHeight: 28 });
     for (const t of [this.mEyebrow, this.mTitle, this.mScore, this.mBody]) t.anchor.set(0.5, 0);
-    this.mNew = new Button(220, 58, ['n', 'start'], pinkButton({ n: 'Yeni oyun', start: 'Başla' }, 22), h.onModal);
-    this.card.view.addChild(this.mEyebrow, this.mTitle, this.mScore, this.mBody, this.mNew.view);
+    this.mNew = new Button(220, 58, ['n', 'start', 'resume'], pinkButton({ n: 'Yeni oyun', start: 'Başla', resume: 'Devam et' }, 22), h.onModal);
+    this.mMulti = new Button(220, 58, ['n'], neonButton('Çok oyunculu', 'people', 19), h.onMulti);
+    this.mHome = new Button(220, 58, ['n'], neonButton('Ana menü', 'home', 19), h.onHome);
+    this.card.view.addChild(this.mEyebrow, this.mTitle, this.mScore, this.mBody, this.mNew.view, this.mMulti.view, this.mHome.view);
     this.dim.eventMode = 'static'; // alttaki öğelere tıklamayı engeller
     this.modal.addChild(this.dim, this.card.view);
     this.modal.visible = false;
@@ -132,6 +143,7 @@ export class Scene {
       this.btnNew.view,
       this.btnSound.view,
       this.btnFull.view,
+      this.btnPause.view,
       ...Object.values(this.lifelines).map((b) => b.view),
       this.counter,
       this.tagline,
@@ -161,6 +173,8 @@ export class Scene {
     put(this.btnNew, L.btnNew);
     put(this.btnSound, L.btnSound);
     put(this.btnFull, L.btnFull);
+    put(this.btnPause, L.btnPause);
+    this.btnPause.baked.invalidate();
     put(this.lifelines.fifty, L.lifelines[0]);
     put(this.lifelines.hint, L.lifelines[1]);
     put(this.lifelines.double, L.lifelines[2]);
@@ -197,8 +211,29 @@ export class Scene {
     this.mScore.position.set(cx, 150);
     this.mBody.position.set(cx, 200);
     this.mBody.style.wordWrapWidth = M.w - 100;
-    this.mNew.place(cx - 110, M.h - 96, 220, 58);
+    this.placeModalButtons();
+    this.mMulti.baked.invalidate();
+    this.mHome.baked.invalidate();
   }
+
+  private modalKind: 'menu' | 'pause' = 'menu';
+
+  /** menu: Başla/Yeni oyun + Çok oyunculu; pause: Devam et + Ana menü. */
+  setModalKind(kind: 'menu' | 'pause') {
+    this.modalKind = kind;
+    this.placeModalButtons();
+  }
+
+  private placeModalButtons() {
+    const M = this.layout.modal;
+    const cx = M.w / 2;
+    const pause = this.modalKind === 'pause';
+    this.mMulti.view.visible = !pause;
+    this.mHome.view.visible = pause;
+    this.mNew.place(cx - 230, M.h - 96, 220, 58);
+    (pause ? this.mHome : this.mMulti).place(cx + 10, M.h - 96, 220, 58);
+  }
+
 
   setActionMode(m: ActionMode) {
     this.confirm.view.visible = m === 'confirm';
