@@ -33,7 +33,7 @@ const jsonResponse = (status, body, type = 'application/json; charset=utf-8') =>
 function fakeFetch(...behaviors) {
   const calls = [];
   const fn = async (url, init = {}) => {
-    calls.push({ url, method: init.method ?? 'GET', headers: init.headers ?? {} });
+    calls.push({ url, method: init.method ?? 'GET', headers: init.headers ?? {}, credentials: init.credentials, body: init.body });
     const b = behaviors.length > 1 ? behaviors.shift() : behaviors[0];
     return b(url, init);
   };
@@ -43,9 +43,8 @@ function fakeFetch(...behaviors) {
 
 const serverStore = (fetch, extra = {}) => {
   const storage = spyStorage();
-  const session = spyStorage();
-  const store = createStore({ mode: 'sunucu', fetch, storage, session, seedUrl: '/data/varsayilan-sorular.json', timeoutMs: 50, ...extra });
-  return { store, storage, session };
+  const store = createStore({ mode: 'sunucu', fetch, storage, seedUrl: '/data/varsayilan-sorular.json', timeoutMs: 50, ...extra });
+  return { store, storage };
 };
 
 const startOk = () => jsonResponse(201, {
@@ -134,16 +133,27 @@ test('yeniden deneme başarılı olunca sunucu modu normal devam eder', async ()
   assert.deepEqual(storage.writes, []);
 });
 
-test('yönetici parolası yalnızca oturum deposunda tutulur ve isteklerde başlık olarak gider', async () => {
-  const fetch = fakeFetch(() => jsonResponse(200, { questions: [], settings: {}, stats: {} }));
-  const { store, storage, session } = serverStore(fetch);
-  store.setAdminKey('oturum-anahtari');
+test('yönetici girişi: parola yalnızca giriş isteğinde gider, hiçbir tarayıcı deposuna yazılmaz; istekler cookie ile', async () => {
+  const fetch = fakeFetch(() => jsonResponse(200, { ok: true, questions: [], settings: {}, stats: {} }));
+  const { store, storage } = serverStore(fetch);
+  await store.login('gizli-parola-123');
   await store.loadAdmin();
-  assert.equal(fetch.calls[0].headers['x-admin-key'], 'oturum-anahtari');
-  assert.deepEqual(session.writes, ['siklamen.key']);
+  await store.logout();
+  assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), ['POST /api/admin/oturum', 'GET /api/admin', 'DELETE /api/admin/oturum']);
+  assert.equal(JSON.parse(fetch.calls[0].body).parola, 'gizli-parola-123');
+  for (const c of fetch.calls) {
+    assert.equal(c.credentials, 'same-origin', 'HttpOnly oturum çerezi aynı origin isteklerinde gider');
+    assert.equal(c.headers['x-admin-key'], undefined, 'parola başlıkta taşınmaz');
+  }
+  assert.ok(!JSON.stringify(fetch.calls.slice(1)).includes('gizli-parola-123'), 'parola sonraki isteklerde yok');
   assert.deepEqual(storage.writes, []);
-  store.clearAdminKey();
-  assert.equal(store.hasAdminKey(), false);
+});
+
+test('ayar kaydında okunan sürüm gönderilir; 409 hatası kullanıcıya iletilir', async () => {
+  const fetch = fakeFetch(() => jsonResponse(409, { error: 'Ayarlar başka bir oturumda değiştirildi. Güncel ayarlar yüklendi; tekrar kaydedin.' }));
+  const { store } = serverStore(fetch);
+  await assert.rejects(store.saveSettings({ questionsPerGame: 5, endOnWrong: true, secondsPerQuestion: 20, surum: 3 }), (e) => e.status === 409 && /başka bir oturumda/.test(e.message));
+  assert.equal(JSON.parse(fetch.calls[0].body).surum, 3);
 });
 
 test('açıkça seçilmiş yerel mod: seed yüklenir, oyun oynanır, yönetici değişikliği yerel depoya yazılır', async () => {
@@ -153,7 +163,7 @@ test('açıkça seçilmiş yerel mod: seed yüklenir, oyun oynanır, yönetici d
   });
   const storage = spyStorage();
   let i = 0;
-  const store = createStore({ mode: 'yerel', fetch, storage, session: spyStorage(), seedUrl: '/data/varsayilan-sorular.json', rng: () => ((i++ * 0.37) % 1) });
+  const store = createStore({ mode: 'yerel', fetch, storage, seedUrl: '/data/varsayilan-sorular.json', rng: () => ((i++ * 0.37) % 1) });
   const game = await store.startGame();
   assert.equal(game.sorular.length, 15);
   const first = seed.find((q) => q.soru === game.sorular[0].soru);

@@ -101,7 +101,7 @@ function message(title: string, body: string, action?: { label: string; run: () 
 
 async function boot() {
   if (!(await serverAvailable())) {
-    message('Sunucu gerekli', 'Çok oyunculu mod, oyunun sunucuyla (npm start ya da npm run dev) çalışmasını gerektirir. Statik barındırmada kullanılamaz.');
+    message('Sunucu gerekli', 'Çok oyunculu mod, oyunun sunucu modu sürümünü gerektirir. Yerel (statik) modda kullanılamaz.');
     return;
   }
   const s = saved.get();

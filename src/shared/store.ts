@@ -14,11 +14,10 @@ const store = createStore({
   mode: DATA_MODE,
   fetch: (url, init) => fetch(url, init as RequestInit),
   storage: DATA_MODE === 'yerel' ? browserStorage(() => localStorage) : null,
-  session: browserStorage(() => sessionStorage),
   seedUrl: `${import.meta.env.BASE_URL}data/varsayilan-sorular.json`,
 });
 
 export const {
-  detectMode, startGame, setAdminKey, clearAdminKey, hasAdminKey,
+  detectMode, startGame, login, logout,
   loadAdmin, saveQuestion, deleteQuestion, replaceAll, saveSettings, resetStats,
 } = store;

@@ -1,0 +1,104 @@
+# CI + Cloudflare/Supabase dağıtımı.
+#   * Her push / PR: kurulum, seed doğrulama, tüm testler, typecheck, build, paket taraması, Worker dry-run.
+#   * main'e push: Supabase migration'ları → API Worker'ı → Pages → canlı sağlık ve sürüm kontrolü.
+# Deploy adımları gerekli GitHub secret'ları tanımlı değilse ATLANIR (uyarı yazılır); testler yine çalışır.
+#
+# GitHub → Settings → Secrets and variables → Actions:
+#   Secrets:   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD
+#   Variables: SUPABASE_PROJECT_REF, PRODUCTION_URL (ör. https://<proje>.pages.dev ya da özel alan adı)
+# Worker secret'ları (ADMIN_PASSWORD, SUPABASE_URL, SUPABASE_SERVICE_KEY) GitHub'a değil, doğrudan
+# Cloudflare'e `wrangler secret put` ile eklenir (docs/OPERASYON.md).
+name: ci-deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:seed
+      - run: npm run db:seed-check
+      - run: npm test
+        env:
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run scan:bundle
+      - run: npm run worker:check
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Gerekli secret'lar var mı?
+        id: check
+        run: |
+          missing=""
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF PRODUCTION_URL; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Dağıtım atlandı; eksik GitHub secret/variable:$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.check.outputs.ready == 'true'
+      - name: Supabase migration'ları
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          npx --yes supabase@3.4.0 link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          npx --yes supabase@3.4.0 db push --password "$SUPABASE_DB_PASSWORD"
+      - name: API Worker'ı
+        if: steps.check.outputs.ready == 'true'
+        run: npx wrangler deploy -c worker/wrangler.toml --env="" --var "GIT_COMMIT:${GITHUB_SHA}"
+      - name: Pages
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          npm run build
+          npm run scan:bundle
+          npx wrangler pages deploy dist --project-name nasodren5 --branch main --commit-hash "$GITHUB_SHA"
+      - name: Canlı sağlık ve sürüm kontrolü
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          for i in $(seq 1 20); do
+            body=$(curl -fsS "$PRODUCTION_URL/api/saglik" || true)
+            echo "$body"
+            if echo "$body" | grep -q "\"surum\":\"$GITHUB_SHA\"" && echo "$body" | grep -q '"durum":"ok"'; then exit 0; fi
+            sleep 6
+          done
+          echo "::error::Canlı sağlık kontrolü yeni sürümü göstermedi."
+          exit 1

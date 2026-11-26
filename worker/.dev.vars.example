@@ -1,0 +1,8 @@
+# Yerel Worker secret'ları (wrangler dev). Bu dosyayı "worker/.dev.vars" adıyla kopyalayıp doldurun.
+# worker/.dev.vars git dışındadır; ASLA commit etmeyin. Production verisine bağlamayın.
+# Bu dosya yoksa `npm run dev` yerel veritabanı emülatörünü kullanır ve bunlara gerek yoktur.
+ORTAM=development
+ADMIN_PASSWORD=
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { cleanQuestion } from '../server/api.mjs';
+import { cleanQuestion } from '../worker/src/engine/ortak.mjs';
 import { SEED_FILE } from './helpers.mjs';
 
 const ALLOWED_KEYS = new Set(['id', 'soru', 'dogru', 'yanlislar', 'kategori', 'ipucu', 'aciklama', 'yanlisAciklamalar', 'aktif', 'olusturma']);
@@ -80,4 +80,15 @@ test('her kategoride birden fazla soru var', () => {
   const counts = new Map();
   for (const q of seed) counts.set(q.kategori, (counts.get(q.kategori) ?? 0) + 1);
   for (const [cat, n] of counts) assert.ok(n >= 2, `${cat} kategorisinde yalnızca ${n} soru var`);
+});
+
+test('Supabase seed migration seed JSON ile birebir aynı', async () => {
+  const { seedSql } = await import('../scripts/seed-migration.mjs');
+  const { readdirSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const dir = join(SEED_FILE, '..', '..', '..', 'supabase', 'migrations');
+  const latest = readdirSync(dir).filter((f) => f.endsWith('_n5_seed_sorular.sql')).sort().at(-1);
+  assert.ok(latest, 'seed migration dosyası yok');
+  const current = (await readFile(join(dir, latest), 'utf8')).replace(/\r\n/g, '\n');
+  assert.equal(current, seedSql(seed), 'seed JSON değişti: node scripts/seed-migration.mjs --yeni çalıştırın');
 });

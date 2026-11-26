@@ -21,8 +21,8 @@ export interface Question {
   aktif?: boolean;
   olusturma?: string;
 }
-/** secondsPerQuestion = 0 ise süre sınırı yoktur. */
-export interface Settings { questionsPerGame: number; endOnWrong: boolean; secondsPerQuestion: number }
+/** secondsPerQuestion = 0 ise süre sınırı yoktur. surum: sunucudaki ayarların sürümü (eşzamanlı yazma koruması). */
+export interface Settings { questionsPerGame: number; endOnWrong: boolean; secondsPerQuestion: number; surum?: number }
 export interface Stats {
   games: number;
   finished: number;
@@ -53,7 +53,7 @@ export interface GameStart { ayarlar: Settings; sorular: PublicRound[]; olcu: Te
 
 export const DEFAULT_SETTINGS: Settings = { questionsPerGame: 15, endOnWrong: true, secondsPerQuestion: 30 };
 const DEFAULT_STATS: Stats = { games: 0, finished: 0, totalCorrect: 0, perQuestion: {} };
-const LS = { questions: 'siklamen.sorular', settings: 'siklamen.ayarlar', stats: 'siklamen.istatistik', key: 'siklamen.key' };
+const LS = { questions: 'siklamen.sorular', settings: 'siklamen.ayarlar', stats: 'siklamen.istatistik' };
 
 export const MESSAGES = {
   network: 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.',
@@ -79,7 +79,7 @@ export function resolveMode(value: unknown): DataMode {
 }
 
 export interface KeyValueStorage { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void }
-type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; cache?: string; signal?: AbortSignal }) => Promise<{
+type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; cache?: string; credentials?: string; signal?: AbortSignal }) => Promise<{
   ok: boolean; status: number; headers: { get(name: string): string | null }; text(): Promise<string>;
 }>;
 
@@ -88,8 +88,6 @@ export interface StoreDeps {
   fetch: FetchLike;
   /** Yerel mod verisi (localStorage). Sunucu modunda soru/ayar/istatistik için kullanılmaz. */
   storage?: KeyValueStorage | null;
-  /** Yönetici parolası oturum boyunca burada tutulur (sessionStorage). */
-  session?: KeyValueStorage | null;
   seedUrl: string;
   timeoutMs?: number;
   rng?: () => number;
@@ -231,8 +229,6 @@ export function createLocalGame(
 export function createStore(deps: StoreDeps) {
   const { mode, seedUrl, timeoutMs = 15_000, rng = Math.random } = deps;
   const storage = deps.storage ?? null;
-  const session = deps.session ?? null;
-  let adminKey = safe(() => session?.getItem(LS.key) ?? '', '') ?? '';
 
   function lsGet<T>(key: string, fallback: T): T {
     return safe(() => {
@@ -253,10 +249,13 @@ export function createStore(deps: StoreDeps) {
     let res: Awaited<ReturnType<FetchLike>>;
     let text: string;
     try {
+      // Yönetici oturumu HttpOnly cookie'dedir: tarayıcı onu aynı origin isteklerine kendisi ekler;
+      // JavaScript parolayı ya da oturum anahtarını hiçbir yerde saklamaz.
       res = await deps.fetch(url, {
         method,
         cache: 'no-store',
-        headers: { 'content-type': 'application/json', ...(adminKey ? { 'x-admin-key': adminKey } : {}) },
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: ctrl?.signal,
       });
@@ -341,15 +340,16 @@ export function createStore(deps: StoreDeps) {
 
     // ---------- yönetici ----------
 
-    setAdminKey(key: string) {
-      adminKey = key;
-      safe(() => session?.setItem(LS.key, key), undefined);
+    /** Yönetici girişi: başarılıysa sunucu kısa ömürlü HttpOnly oturum cookie'si verir. */
+    async login(parola: string): Promise<void> {
+      if (mode !== 'sunucu') return;
+      await call('POST', '/api/admin/oturum', { parola });
     },
-    clearAdminKey() {
-      adminKey = '';
-      safe(() => session?.removeItem(LS.key), undefined);
+    /** Çıkış: oturum cookie'si silinir. */
+    async logout(): Promise<void> {
+      if (mode !== 'sunucu') return;
+      await call('DELETE', '/api/admin/oturum');
     },
-    hasAdminKey: () => !!adminKey,
 
     async loadAdmin(): Promise<{ questions: Question[]; settings: Settings; stats: Stats }> {
       if (mode === 'sunucu') return call('GET', '/api/admin');

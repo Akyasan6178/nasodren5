@@ -1,4 +1,4 @@
-// Canlı yarışma: sunucuyla konuşan ortak katman (server/canli.mjs ile aynı veri biçimi).
+// Canlı yarışma: sunucuyla konuşan ortak katman (worker/src/engine/oda.mjs ile aynı veri biçimi).
 
 export type Phase = 'lobi' | 'hazir' | 'soru' | 'sonuc' | 'tablo' | 'bitti' | 'yok' | 'atildi';
 

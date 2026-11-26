@@ -1,0 +1,604 @@
+-- OTOMATİK ÜRETİLDİ: node scripts/seed-migration.mjs (kaynak: public/data/varsayilan-sorular.json)
+-- Elle düzenlemeyin. Var olan sorulara dokunmaz; yalnızca eksik kimlikleri ekler.
+select public.n5_soru_tohumla($n5seed$[
+  {
+    "id": "sinus-01",
+    "soru": "Başımızda kaç çift sinüs (yüz boşluğu) bulunur?",
+    "dogru": "Dört çift",
+    "yanlislar": [
+      "İki çift",
+      "Üç çift",
+      "Altı çift"
+    ],
+    "kategori": "Sinüsler",
+    "ipucu": "Sayı, bir masanın ayak sayısıyla aynıdır.",
+    "aciklama": "Başta dört çift sinüs bulunur. Sinüsler, yüzde sağlı sollu çiftler hâlinde bulunan boşluklardır.",
+    "yanlisAciklamalar": [
+      "İki çift eksik kalır; başta dört çift sinüs vardır.",
+      "Üç çift de eksik kalır; doğru sayı dört çifttir.",
+      "Altı çift fazladır; başta dört çift sinüs bulunur."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "sinus-02",
+    "soru": "Sinüsler yüzde hangi bölgelerin arkasında yer alan boşluklardır?",
+    "dogru": "Gözlerin, burnun, alnın ve yanakların arkasında",
+    "yanlislar": [
+      "Yalnızca kulakların ve şakakların arkasında",
+      "Yalnızca alt çenenin ve dilin altında",
+      "Yalnızca boyun kaslarının arasında"
+    ],
+    "kategori": "Sinüsler",
+    "ipucu": "Sinüzitte ağrının en çok hissedildiği yüz bölgelerini düşünün.",
+    "aciklama": "Sinüsler gözlerin, burnun, alnın ve yanakların arkasındaki boşluklardır. Bu yüzden sinüzitte ağrı ve baskı genellikle bu bölgelerde hissedilir.",
+    "yanlisAciklamalar": [
+      "Kulak ve şakak arkası sinüslerin bulunduğu yerler arasında sayılmaz.",
+      "Sinüsler alt çenede ya da dilin altında değil, yüzün üst ve orta bölümündedir.",
+      "Boyunda sinüs bulunmaz; sinüsler yüz kemiklerinin içindedir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "sinus-03",
+    "soru": "Sinüsler burun boşluğuyla nasıl bağlantılıdır?",
+    "dogru": "Küçük ve dar kanallarla burna açılırlar",
+    "yanlislar": [
+      "Hiçbir bağlantıları yoktur, tamamen kapalıdırlar",
+      "Yalnızca kulak kanalı üzerinden burna bağlanırlar",
+      "Burunla değil, yalnızca yemek borusuyla bağlantılıdırlar"
+    ],
+    "kategori": "Sinüsler",
+    "ipucu": "Bu bağlantı yolları tıkandığında sinüzit gelişebilir.",
+    "aciklama": "Sinüsler burna küçük ve dar kanallarla bağlanır. Bu kanallar sinüslerin boşalmasını sağlar; tıkanmaları sorun yaratır.",
+    "yanlisAciklamalar": [
+      "Sinüsler kapalı değildir; burna dar kanallarla açılırlar.",
+      "Sinüslerin burna bağlantısı kulak kanalı üzerinden değil, kendi dar kanalları üzerindendir.",
+      "Sinüsler yemek borusuna değil, dar kanallarla burun boşluğuna açılır."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "sinus-04",
+    "soru": "Sinüslerin iç yüzeyi neyle kaplıdır?",
+    "dogru": "Burnun içini kaplayan zarla aynı türden bir zarla",
+    "yanlislar": [
+      "Dış derimizle aynı yapıda, sert bir deriyle",
+      "Dişlerin dış yüzeyindeki mine tabakasıyla",
+      "Yalnızca kıkırdaktan oluşan pürüzsüz bir katmanla"
+    ],
+    "kategori": "Sinüsler",
+    "ipucu": "Sinüsler bu yüzden burunla benzer biçimde mukus üretir.",
+    "aciklama": "Sinüslerin içi, burnun içini kaplayan zarla aynı türden bir zarla kaplıdır. Bu zar gün boyunca mukus salgılar.",
+    "yanlisAciklamalar": [
+      "Sinüslerin içinde dış deri bulunmaz; burun zarıyla aynı türden bir zar vardır.",
+      "Mine yalnızca dişlerde bulunur; sinüslerin iç yüzeyi mukus üreten bir zardır.",
+      "Sinüslerin iç yüzeyi kıkırdak değil, mukus salgılayan bir zardır."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "sinus-05",
+    "soru": "Sinüsleri kaplayan zarın şişmesi neden sinüzite yol açabilir?",
+    "dogru": "Sinüsleri boşaltan kanalları tıkayabildiği için",
+    "yanlislar": [
+      "Sinüslerin kemik duvarlarını incelttiği için",
+      "Koku alma hücrelerini kalıcı olarak yok ettiği için",
+      "Kanalları genişletip akışı hızlandırdığı için"
+    ],
+    "kategori": "Sinüsler",
+    "ipucu": "Bir lavabonun gideri tıkanınca ne olduğunu düşünün.",
+    "aciklama": "Zar şiştiğinde sinüsleri boşaltan kanallar tıkanabilir. Mukus boşalamayınca sinüslerde birikir ve sinüzit tablosu ortaya çıkar.",
+    "yanlisAciklamalar": [
+      "Zarın şişmesinin sorunu kemiği inceltmesi değil, boşaltım kanallarını tıkamasıdır.",
+      "Şişme koku almayı azaltabilir, ancak sinüzitin temel mekanizması kanalların tıkanmasıdır.",
+      "Şişme kanalları genişletmez; tam tersine daraltıp tıkar."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "belirti-01",
+    "soru": "Aşağıdakilerden hangisi sinüzitin bilinen belirtilerinden biridir?",
+    "dogru": "Yüzde ağrı ya da baskı hissi",
+    "yanlislar": [
+      "Kulaklarda sürekli çınlama",
+      "Gözlerde kuruluk",
+      "Parmak uçlarında uyuşma"
+    ],
+    "kategori": "Belirtiler",
+    "ipucu": "Sinüslerin yüzde nerede olduğunu hatırlayın.",
+    "aciklama": "Yüzde ağrı ya da baskı, sağlık kuruluşlarının sinüzit belirtileri arasında saydığı en tipik bulgulardandır.",
+    "yanlisAciklamalar": [
+      "Kulak çınlaması sinüzit belirtileri listesinde yer almaz.",
+      "Göz kuruluğu sinüzitin tipik belirtileri arasında sayılmaz.",
+      "Parmak uçlarında uyuşma sinüzitle ilişkili belirtiler arasında yer almaz."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "belirti-02",
+    "soru": "Sinüzit koku alma duyusunu nasıl etkileyebilir?",
+    "dogru": "Koku alma duyusu azalabilir",
+    "yanlislar": [
+      "Koku alma duyusu her zaman keskinleşir",
+      "Koku alma duyusu hiçbir şekilde etkilenmez",
+      "Yalnızca tatlı kokular daha yoğun algılanır"
+    ],
+    "kategori": "Belirtiler",
+    "ipucu": "Burnu tıkalı birinin yemek kokusunu nasıl algıladığını düşünün.",
+    "aciklama": "Sinüzitte koku alma duyusu azalabilir. Bu durum sinüzitin tanımlanmış belirtileri arasındadır.",
+    "yanlisAciklamalar": [
+      "Sinüzit koku almayı keskinleştirmez; tersine azaltabilir.",
+      "Koku alma duyusundaki azalma sinüzitin bilinen belirtilerindendir.",
+      "Sinüzitte belirli kokuların daha yoğun algılandığına dair bir bilgi yoktur; koku alma azalabilir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "belirti-03",
+    "soru": "Sinüzit olan birinin dişlerinde ne hissetmesi beklenebilir?",
+    "dogru": "Dişlerde baskı ya da ağrı",
+    "yanlislar": [
+      "Dişlerin renginin değişmesi",
+      "Diş etlerinin kalıcı olarak çekilmesi",
+      "Dişlerin sallanıp dökülmesi"
+    ],
+    "kategori": "Belirtiler",
+    "ipucu": "Sinüzitte hissedilen baskı yalnızca alın ve yanaklarla sınırlı kalmayabilir.",
+    "aciklama": "Sinüzitte dişlerde baskı ya da diş ağrısı hissedilebilir.",
+    "yanlisAciklamalar": [
+      "Diş renginde değişiklik sinüzit belirtileri arasında sayılmaz.",
+      "Diş eti çekilmesi sinüzitin belirtisi değildir.",
+      "Sinüzitte dişlerde baskı hissedilebilir; ancak dişlerin dökülmesi bir sinüzit belirtisi değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "belirti-04",
+    "soru": "Mukusun burnun arkasından boğaza doğru akmasına ne ad verilir?",
+    "dogru": "Geniz akıntısı",
+    "yanlislar": [
+      "Burun kanaması",
+      "Mide reflüsü",
+      "Ses kısıklığı"
+    ],
+    "kategori": "Belirtiler",
+    "ipucu": "Burnun boğaza açılan arka bölümüne halk arasında verilen ad cevabın içinde geçer.",
+    "aciklama": "Mukusun boğaza doğru akmasına geniz akıntısı denir. Sinüzit belirtileri arasında sayılır.",
+    "yanlisAciklamalar": [
+      "Burun kanaması kanın burundan gelmesidir; mukusun boğaza akması değildir.",
+      "Mide reflüsü mide içeriğinin yemek borusuna geri kaçmasıdır; burunla ilgili değildir.",
+      "Ses kısıklığı ses tellerini ilgilendirir; mukusun boğaza akmasının adı değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "belirti-05",
+    "soru": "Sinüzit belirtileri en az ne kadar sürdüğünde \"kronik sinüzit\" olarak adlandırılır?",
+    "dogru": "12 haftadan uzun",
+    "yanlislar": [
+      "3 günden uzun",
+      "10 günden uzun",
+      "1 yıldan uzun"
+    ],
+    "kategori": "Belirtiler",
+    "ipucu": "Süre yaklaşık üç aya karşılık gelir.",
+    "aciklama": "Kronik sinüzit tanısı için belirtilerin 12 haftadan uzun sürmesi gerekir. Daha kısa süren tablolar akut sinüzit olarak değerlendirilir.",
+    "yanlisAciklamalar": [
+      "3 gün kronik sayılmak için çok kısadır; eşik 12 haftadır.",
+      "10 gün, düzelmeyen belirtilerde doktora başvurma eşiği olarak bilinir; kronik sinüzit eşiği değildir.",
+      "Kronik sayılmak için bir yıl beklemek gerekmez; 12 haftayı aşması yeterlidir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "korunma-01",
+    "soru": "Sinüs enfeksiyonlarından korunmaya yardımcı olan günlük alışkanlıklardan biri hangisidir?",
+    "dogru": "Elleri düzenli olarak temizlemek",
+    "yanlislar": [
+      "Burun içini pamuklu çubukla sık sık kazımak",
+      "Kapalı ortamlarda havalandırmadan kaçınmak",
+      "Mendil yerine aynı bezi günlerce kullanmak"
+    ],
+    "kategori": "Korunma",
+    "ipucu": "Soğuk algınlığı mikroplarının en kolay taşındığı yolu düşünün.",
+    "aciklama": "Elleri temizlemek, sağlık kuruluşlarının sinüs enfeksiyonlarından korunma önerileri arasında ilk sıralarda yer alır.",
+    "yanlisAciklamalar": [
+      "Burun içini pamuklu çubukla kazımak korunma önerileri arasında yer almaz.",
+      "Havalandırmadan kaçınmak korunma önerileri arasında yer almaz.",
+      "Aynı bezi günlerce kullanmak mikropların yayılmasına zemin hazırlar; korunma yöntemi değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "korunma-02",
+    "soru": "Sigara dumanı ile sinüs enfeksiyonları arasındaki ilişki için hangisi doğrudur?",
+    "dogru": "Sigara içmek ve pasif içicilik risk faktörüdür",
+    "yanlislar": [
+      "Sigara dumanı sinüsleri temizleyerek korur",
+      "Yalnızca sigara içen kişinin kendisi etkilenir",
+      "Sigara dumanının sinüslerle hiçbir ilişkisi yoktur"
+    ],
+    "kategori": "Korunma",
+    "ipucu": "Başkasının dumanını solumak da hesaba katılır.",
+    "aciklama": "Sigara içmek ve başkalarının dumanına maruz kalmak sinüs enfeksiyonu için risk faktörüdür. Sigara içmemek ve dumandan uzak durmak korunma önerileri arasındadır.",
+    "yanlisAciklamalar": [
+      "Sigara dumanı sinüsleri korumaz; risk faktörü olarak kabul edilir.",
+      "Pasif içicilik de, yani başkasının dumanına maruz kalmak da risk faktörüdür.",
+      "Sigara dumanı sinüs enfeksiyonları için tanımlanmış bir risk faktörüdür."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "korunma-03",
+    "soru": "Evde havayı nemlendirmek için cihaz kullanılıyorsa nelere dikkat edilmelidir?",
+    "dogru": "Cihazın temiz tutulmasına",
+    "yanlislar": [
+      "Haznedeki suyun haftalarca değiştirilmemesine",
+      "Cihazın yalnızca sıcak hava üflemesine",
+      "Cihazın burnun hemen dibine yerleştirilmesine"
+    ],
+    "kategori": "Korunma",
+    "ipucu": "Su bekleten her cihaz gibi bu cihazın da bakımı önemlidir.",
+    "aciklama": "Korunma önerilerinde evdeki havayı nemlendirmek için temiz bir nemlendirici kullanılması tavsiye edilir.",
+    "yanlisAciklamalar": [
+      "Suyu uzun süre değiştirmemek cihazın temiz kalmasını engeller.",
+      "Önerinin özü cihazın sıcak hava üflemesi değil, temiz olmasıdır.",
+      "Cihazın konumu değil, temiz kullanılması önerilir; doğrudan burna yöneltmek bir tavsiye değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "korunma-04",
+    "soru": "Sinüs enfeksiyonlarından korunma önerileri arasında hangi aşılar anılır?",
+    "dogru": "Grip ve pnömokok aşıları",
+    "yanlislar": [
+      "Kuduz ve tetanoz aşıları",
+      "Sarı humma ve tifo aşıları",
+      "Yalnızca suçiçeği aşısı"
+    ],
+    "kategori": "Korunma",
+    "ipucu": "Biri her sonbahar gündeme gelir, diğeri bir zatürre etkenine karşıdır.",
+    "aciklama": "Önerilen aşıları, örneğin grip ve pnömokok aşılarını yaptırmak sinüs enfeksiyonlarından korunma önerileri arasında yer alır.",
+    "yanlisAciklamalar": [
+      "Kuduz ve tetanoz aşıları önemlidir, ancak sinüs enfeksiyonu korunma önerilerinde anılmaz.",
+      "Sarı humma ve tifo aşıları seyahat aşılarıdır; sinüs enfeksiyonu önerilerinde yer almaz.",
+      "Suçiçeği aşısı bu bağlamda anılmaz; önerilen örnekler grip ve pnömokok aşılarıdır."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "korunma-05",
+    "soru": "Aşağıdakilerden hangisi sinüs enfeksiyonu için bir risk faktörü olarak sayılır?",
+    "dogru": "Yakın zamanda geçirilmiş soğuk algınlığı",
+    "yanlislar": [
+      "Elleri düzenli olarak yıkamak",
+      "Temiz bir nemlendirici kullanmak",
+      "Önerilen aşıları yaptırmak"
+    ],
+    "kategori": "Korunma",
+    "ipucu": "Diğer üç seçenek aslında korunma önerileridir.",
+    "aciklama": "Geçirilmiş bir soğuk algınlığı sinüs enfeksiyonu için risk faktörleri arasında sayılır. Mevsimsel alerjiler ve sigara dumanı da bu listededir.",
+    "yanlisAciklamalar": [
+      "El yıkamak risk faktörü değil, korunma önerisidir.",
+      "Temiz nemlendirici kullanmak risk değil, korunma önerileri arasındadır.",
+      "Önerilen aşıları yaptırmak riski artırmaz; korunma önerisidir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "yanlis-01",
+    "soru": "Burun ve sinüs yıkamada hangi su kullanılmalıdır?",
+    "dogru": "Damıtılmış, steril ya da kaynatılıp soğutulmuş su",
+    "yanlislar": [
+      "Doğrudan musluktan alınan su",
+      "Musluktan alınıp ılıtılmış su",
+      "Kaynatılmamış çeşme suyu"
+    ],
+    "kategori": "Yanlış bilinenler",
+    "ipucu": "İçme suyu olarak güvenli olan su, burun yıkamada her zaman güvenli değildir.",
+    "aciklama": "Musluk suyu burun yıkama için yeterince filtrelenmiş ya da arıtılmış sayılmaz. Damıtılmış, steril ya da kaynatılıp soğutulmuş su kullanılmalıdır.",
+    "yanlisAciklamalar": [
+      "Musluk suyu burun yıkama için güvenli kabul edilmez; içmek için uygun olması bu işe uygun olduğu anlamına gelmez.",
+      "Suyu yalnızca ılıtmak yetmez; kaynatılıp soğutulmalı ya da steril/damıtılmış su kullanılmalıdır.",
+      "Kaynatılmamış şebeke suyu burun yıkama için önerilmez."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "yanlis-02",
+    "soru": "Burun açıcı (dekonjestan) spreylerin kullanımıyla ilgili hangisi doğrudur?",
+    "dogru": "Birkaç günden uzun kullanılmamaları önerilir",
+    "yanlislar": [
+      "Haftalarca aralıksız kullanılmaları önerilir",
+      "Etki etmeleri için en az iki hafta gerekir",
+      "Ne kadar uzun kullanılırsa o kadar etkili olurlar"
+    ],
+    "kategori": "Yanlış bilinenler",
+    "ipucu": "Kısa süreli rahatlama sağlarlar; süre sınırına dikkat edilir.",
+    "aciklama": "Burun açıcı spreylerin genellikle 3–5 günden uzun kullanılmaması önerilir. Kullanım süresi ve şekli için ürün bilgisine ve eczacıya başvurulmalıdır.",
+    "yanlisAciklamalar": [
+      "Bu spreyler uzun süreli kullanım için önerilmez; kısa süreli kullanım tavsiye edilir.",
+      "İki hafta beklemek gibi bir kural yoktur; önerilen kullanım süresi kısadır.",
+      "Uzun kullanım daha fazla fayda sağlamaz; önerilen süre kısadır."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "yanlis-03",
+    "soru": "\"Sinüzit mutlaka ameliyatla tedavi edilir\" düşüncesi için hangisi doğrudur?",
+    "dogru": "Yanlıştır; ameliyat ancak diğer tedaviler yetersiz kalırsa düşünülür",
+    "yanlislar": [
+      "Doğrudur; her sinüzitte ilk seçenek ameliyattır",
+      "Doğrudur; ameliyat olmadan sinüzit hiç geçmez",
+      "Yanlıştır; sinüzitte ameliyat hiçbir zaman yapılmaz"
+    ],
+    "kategori": "Yanlış bilinenler",
+    "ipucu": "Ameliyat bir seçenektir, ama genellikle sıranın sonundadır.",
+    "aciklama": "Ameliyat, belirtiler ilaç ve diğer tedavilerle kontrol altına alınamadığında başvurulan bir seçenektir. Her sinüzit ameliyat gerektirmez.",
+    "yanlisAciklamalar": [
+      "Ameliyat ilk seçenek değildir; ilaç ve diğer tedaviler yetersiz kalırsa gündeme gelir.",
+      "Sinüs enfeksiyonlarının çoğu kendiliğinden ya da ameliyatsız yöntemlerle düzelir.",
+      "Ameliyat hiç yapılmayan bir işlem değildir; diğer tedaviler işe yaramadığında bir seçenektir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "yanlis-04",
+    "soru": "\"Her sinüs enfeksiyonu antibiyotik gerektirir\" düşüncesi için hangisi doğrudur?",
+    "dogru": "Yanlıştır; birçok sinüs enfeksiyonu antibiyotiksiz düzelir",
+    "yanlislar": [
+      "Doğrudur; antibiyotiksiz hiçbir sinüzit iyileşmez",
+      "Doğrudur; antibiyotik virüslere de etki eder",
+      "Yanlıştır; sinüs enfeksiyonlarında antibiyotik hiçbir zaman kullanılmaz"
+    ],
+    "kategori": "Yanlış bilinenler",
+    "ipucu": "Sinüs enfeksiyonlarının en sık nedenini düşünün.",
+    "aciklama": "Sinüs enfeksiyonları çoğunlukla virüslerden kaynaklanır ve genellikle antibiyotik olmadan kendiliğinden düzelir. Antibiyotik gerekip gerekmediğine doktor karar verir.",
+    "yanlisAciklamalar": [
+      "Birçok sinüs enfeksiyonu antibiyotik gerekmeden kendiliğinden düzelir.",
+      "Gerekmediği durumlarda antibiyotik fayda sağlamaz; sinüs enfeksiyonlarının çoğuna virüsler yol açar.",
+      "Bazı sinüs enfeksiyonlarına bakteriler yol açar; antibiyotik gerekip gerekmediğine doktor karar verir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "yanlis-05",
+    "soru": "\"Alnımda ve yanaklarımda baskı varsa kesinlikle sinüzittir\" düşüncesi için hangisi doğrudur?",
+    "dogru": "Yanlıştır; migren ya da gerilim tipi baş ağrısı da benzer baskı yapabilir",
+    "yanlislar": [
+      "Doğrudur; yüzdeki her baskı sinüzitten kaynaklanır",
+      "Doğrudur; migren yüzde hiçbir zaman baskı yapmaz",
+      "Yanlıştır; bu baskı yalnızca diş çürüğünden kaynaklanır"
+    ],
+    "kategori": "Yanlış bilinenler",
+    "ipucu": "Başka baş ağrısı türleri de sinüs ağrısını taklit edebilir.",
+    "aciklama": "Migren ve gerilim tipi baş ağrıları da sinüs ağrısına ya da baskısına benzer belirtiler yapabilir. Kesin değerlendirmeyi bir sağlık profesyoneli yapar.",
+    "yanlisAciklamalar": [
+      "Yüzdeki baskının başka nedenleri de olabilir; örneğin migren ve gerilim tipi baş ağrısı.",
+      "Migren sinüs ağrısı ya da baskısına benzeyen belirtilere yol açabilir.",
+      "Bu baskının tek nedeni diş çürüğü değildir; sinüzit ve bazı baş ağrısı türleri de benzer belirtiler yapabilir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "okuryazar-01",
+    "soru": "Sinüs enfeksiyonlarının en sık nedeni nedir?",
+    "dogru": "Virüsler",
+    "yanlislar": [
+      "Mantarlar",
+      "Parazitler",
+      "Besin zehirlenmesi"
+    ],
+    "kategori": "Sağlık okuryazarlığı",
+    "ipucu": "Soğuk algınlığına da aynı tür mikroplar yol açar.",
+    "aciklama": "Sinüs enfeksiyonlarının çoğuna virüsler yol açar; bazılarına ise bakteriler neden olabilir.",
+    "yanlisAciklamalar": [
+      "Mantarlar sinüs enfeksiyonlarının en sık nedeni değildir; çoğuna virüsler yol açar.",
+      "Parazitler sinüs enfeksiyonlarının sık bir nedeni olarak sayılmaz.",
+      "Besin zehirlenmesi sindirim sistemini ilgilendirir; sinüs enfeksiyonu nedeni değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "okuryazar-02",
+    "soru": "Akut sinüzit çoğunlukla hangi durumun ardından gelişir?",
+    "dogru": "Soğuk algınlığı",
+    "yanlislar": [
+      "Ağır bir spor antrenmanı",
+      "Uzun süre ekran başında kalmak",
+      "Bol su içmek"
+    ],
+    "kategori": "Sağlık okuryazarlığı",
+    "ipucu": "Burun akıntısı ve hapşırıkla başlayan yaygın bir hastalık.",
+    "aciklama": "Akut sinüzit genellikle bir soğuk algınlığının ardından ortaya çıkar. Geçirilmiş soğuk algınlığı aynı zamanda risk faktörü olarak sayılır.",
+    "yanlisAciklamalar": [
+      "Spor antrenmanı sinüzitin tetikleyicileri arasında sayılmaz.",
+      "Ekran başında kalmak sinüzit nedeni olarak tanımlanmamıştır.",
+      "Su içmek sinüzite yol açan bir durum değildir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "okuryazar-03",
+    "soru": "Sinüs belirtileri hangi durumda bir sağlık kuruluşuna başvurmayı gerektirir?",
+    "dogru": "10 günden uzun sürüp düzelmezse",
+    "yanlislar": [
+      "Burun akıntısının ilk gününde her zaman",
+      "Yalnızca belirtiler bir yıl sürerse",
+      "Hiçbir durumda gerekmez, her zaman kendiliğinden geçer"
+    ],
+    "kategori": "Sağlık okuryazarlığı",
+    "ipucu": "Süre bir buçuk haftayı aşıyorsa dikkat.",
+    "aciklama": "Belirtiler 10 günden uzun sürüp düzelmiyorsa, düzeldikten sonra yeniden kötüleşiyorsa ya da şiddetliyse doktora başvurulması önerilir.",
+    "yanlisAciklamalar": [
+      "Hafif belirtiler çoğu zaman kendiliğinden geçer; ilk günde başvuru her zaman gerekmez.",
+      "Bir yıl beklemek gereksiz ve risklidir; eşik 10 gündür.",
+      "Uzun süren, kötüleşen ya da şiddetli belirtilerde doktora başvurmak önerilir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "okuryazar-04",
+    "soru": "Sinüs belirtileri biraz düzeldikten sonra yeniden kötüleşirse ne yapılması önerilir?",
+    "dogru": "Bir doktora başvurulması",
+    "yanlislar": [
+      "Evdeki eski antibiyotiklerden birini başlamak",
+      "Belirtiler tamamen geçene kadar beklemek",
+      "Burun açıcı spreyin dozunu kendiliğinden artırmak"
+    ],
+    "kategori": "Sağlık okuryazarlığı",
+    "ipucu": "Kendi kendine tedavi yerine profesyonel değerlendirme gerekir.",
+    "aciklama": "Belirtilerin düzeldikten sonra yeniden kötüleşmesi, doktora başvurmayı gerektiren durumlar arasında sayılır.",
+    "yanlisAciklamalar": [
+      "Antibiyotik kullanımına doktor karar verir; evde kalan ilaçlarla kendi kendine tedavi önerilmez.",
+      "Yeniden kötüleşme beklemek için değil, doktora başvurmak için bir işarettir.",
+      "Burun açıcı spreyler kısa süreli kullanılır; dozu kendiliğinden artırmak önerilmez."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "okuryazar-05",
+    "soru": "Gerekmediği halde antibiyotik kullanmanın olası sonucu nedir?",
+    "dogru": "Yan etkiler ve antibiyotik direncine katkı",
+    "yanlislar": [
+      "Bağışıklığın kalıcı olarak güçlenmesi",
+      "Gelecekteki tüm enfeksiyonların önlenmesi",
+      "Hiçbir etkisi olmaması"
+    ],
+    "kategori": "Sağlık okuryazarlığı",
+    "ipucu": "Bilinçsiz kullanım, ilaçların gelecekteki etkinliğini de tehdit eder.",
+    "aciklama": "Antibiyotikler her kullanıldığında yan etkilere ve antibiyotik direncinin gelişmesine katkıda bulunabilir. Bu yüzden yalnızca gerektiğinde kullanılmalıdır.",
+    "yanlisAciklamalar": [
+      "Antibiyotikler bağışıklığı güçlendirmez; gereksiz kullanım yan etki ve direnç riski taşır.",
+      "Antibiyotik kullanmak gelecekteki enfeksiyonları önlemez.",
+      "Gereksiz kullanım etkisiz değildir; yan etkilere ve dirence yol açabilir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "siklamen-01",
+    "soru": "Siklamen (Cyclamen) bitkisi hangi bitki ailesinde yer alır?",
+    "dogru": "Çuhaçiçeğigiller (Primulaceae)",
+    "yanlislar": [
+      "Gülgiller (Rosaceae)",
+      "Zambakgiller (Liliaceae)",
+      "Papatyagiller (Asteraceae)"
+    ],
+    "kategori": "Siklamen",
+    "ipucu": "Ailenin adı, ilkbaharın erken açan bir çiçeğinden gelir.",
+    "aciklama": "Siklamen, çuhaçiçeğigiller (Primulaceae) ailesinde yer alır.",
+    "yanlisAciklamalar": [
+      "Gülgiller ailesine gül ve elma gibi bitkiler girer; siklamen bu ailede değildir.",
+      "Zambakgiller ayrı bir ailedir; siklamen çuhaçiçeğigillerdendir.",
+      "Papatyagiller papatya ve ayçiçeği gibi bitkileri kapsar; siklamen bu ailede yer almaz."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "siklamen-02",
+    "soru": "Siklamen hangi yer altı depo organından gelişir?",
+    "dogru": "Yumru",
+    "yanlislar": [
+      "Soğan",
+      "Rizom (kök sap)",
+      "Kazık kök"
+    ],
+    "kategori": "Siklamen",
+    "ipucu": "Patates ve yıldız çiçeği (dahlia) de aynı tür organdan gelişir.",
+    "aciklama": "Siklamen yumrulu, çok yıllık bir bitkidir. Patates ve yıldız çiçeği gibi yumrudan gelişir.",
+    "yanlisAciklamalar": [
+      "Siklamen soğanlı bir bitki değildir; yumrudan gelişir.",
+      "Siklamenin depo organı rizom değil, yumrudur.",
+      "Kazık kök bir depo yumrusu değildir; siklamen yumrulu bir bitkidir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "siklamen-03",
+    "soru": "Siklamen türlerinin çoğunun doğal yayılış alanı neresidir?",
+    "dogru": "Akdeniz havzası",
+    "yanlislar": [
+      "Amazon yağmur ormanları",
+      "Kuzey Amerika çölleri",
+      "Avustralya'nın iç bölgeleri"
+    ],
+    "kategori": "Siklamen",
+    "ipucu": "Türkiye de bu cinsin doğal olarak yetiştiği ülkeler arasındadır.",
+    "aciklama": "Siklamen türlerinin çoğu Akdeniz havzasına özgüdür. Cinsin doğal yayılışı Avrupa'dan İran'a uzanır; Türkiye de bu alanın içindedir.",
+    "yanlisAciklamalar": [
+      "Siklamen Güney Amerika'ya özgü bir cins değildir; çoğu türü Akdeniz kökenlidir.",
+      "Kuzey Amerika siklamenin doğal yayılış alanı değildir.",
+      "Avustralya siklamenin doğal yayılış alanında yer almaz."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "siklamen-04",
+    "soru": "Siklamenin özellikle hangi kısımları zehirlidir?",
+    "dogru": "Yumruları ve kökleri",
+    "yanlislar": [
+      "Hiçbir kısmı zehirli değildir",
+      "Yalnızca çiçeklerinin polenleri",
+      "Yalnızca yapraklarındaki gümüşi desenler"
+    ],
+    "kategori": "Siklamen",
+    "ipucu": "Bitkinin toprak altında kalan bölümünü düşünün.",
+    "aciklama": "Siklamenin yumruları ve kökleri zehirlidir. Bitki kedi, köpek ve atlar için de toksiktir; bu yüzden evcil hayvanlardan uzak tutulmalıdır.",
+    "yanlisAciklamalar": [
+      "Siklamen zehirsiz değildir; özellikle yumru ve kökleri zehirlidir.",
+      "Zehirlilik polenlerle sınırlı değildir; özellikle yumru ve kökler zehirlidir.",
+      "Yapraklardaki desenler zehirliliğin kaynağı değildir; özellikle yumru ve kökler zehirlidir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  },
+  {
+    "id": "siklamen-05",
+    "soru": "Siklamen yapraklarının tipik görünümü hangisidir?",
+    "dogru": "Kalp ya da böbrek biçiminde, çoğu zaman gümüşi desenli",
+    "yanlislar": [
+      "İğne biçiminde ve her mevsim sarı renkli",
+      "Uzun şerit biçiminde ve sık tüylü",
+      "Tüy gibi dilimli ve bileşik yapılı"
+    ],
+    "kategori": "Siklamen",
+    "ipucu": "Sevgiyle ilişkilendirilen bir biçim ve parlak, metalik bir renk.",
+    "aciklama": "Siklamen yaprakları kalp ya da böbrek biçimindedir. Çoğu zaman koyu yeşil zemin üzerinde gümüşi ya da mermer desenler taşır.",
+    "yanlisAciklamalar": [
+      "Siklamen yaprakları iğne biçimli değildir; kalp ya da böbrek biçimindedir.",
+      "Siklamen yaprakları uzun şerit biçiminde değildir.",
+      "Siklamen yaprakları tüy gibi dilimli değil, yuvarlak hatlı kalp ya da böbrek biçimindedir."
+    ],
+    "aktif": true,
+    "olusturma": "2026-11-26T00:00:00.000Z"
+  }
+]$n5seed$::jsonb);

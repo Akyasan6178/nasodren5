@@ -5,8 +5,8 @@ import '@fontsource/poppins/700.css';
 import '@fontsource/poppins/800.css';
 import './admin.css';
 import {
-  clearAdminKey, deleteQuestion, detectMode, hasAdminKey, loadAdmin, replaceAll, resetStats,
-  saveQuestion, saveSettings, setAdminKey, validate, type Question, type Settings, type Stats,
+  deleteQuestion, detectMode, loadAdmin, login, logout, replaceAll, resetStats,
+  saveQuestion, saveSettings, validate, type Question, type Settings, type Stats,
 } from '../shared/store';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -33,7 +33,6 @@ function toast(msg: string, err = false) {
 function fail(e: unknown) {
   const err = e as Error & { status?: number };
   if (err.status === 401) {
-    clearAdminKey();
     showLogin('Oturum süresi doldu, yeniden giriş yapın.');
   } else {
     toast(err.message || 'Bir hata oluştu.', true);
@@ -53,20 +52,21 @@ function showLogin(message = '') {
 
 $('login-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
-  setAdminKey($<HTMLInputElement>('login-pass').value);
+  const pass = $<HTMLInputElement>('login-pass');
   try {
+    await login(pass.value);
+    pass.value = ''; // parola sayfada tutulmaz; oturum HttpOnly cookie'dedir
     await refresh();
     $('login').hidden = true;
     $('app').hidden = false;
   } catch (e) {
-    clearAdminKey();
     const err = e as Error & { status?: number };
     showLogin(err.status === 401 ? 'Şifre hatalı.' : err.message);
   }
 });
 
-$('logout').addEventListener('click', () => {
-  clearAdminKey();
+$('logout').addEventListener('click', async () => {
+  await logout().catch(() => undefined); // cookie sunucuda silinir; hata olsa da giriş ekranına dönülür
   $<HTMLInputElement>('login-pass').value = '';
   showLogin();
 });
@@ -255,6 +255,8 @@ $('s-form').addEventListener('submit', async (ev) => {
     questionsPerGame: Math.min(50, Math.max(1, Math.round(n) || 15)),
     endOnWrong: (f.elements.namedItem('endOnWrong') as HTMLInputElement).checked,
     secondsPerQuestion: Math.min(180, Math.max(0, Math.round(Number((f.elements.namedItem('secondsPerQuestion') as HTMLInputElement).value)) || 0)),
+    // Okunan sürüm: arada başka bir oturum ayarları değiştirdiyse sunucu 409 döndürür (eski veri yenisini ezmez).
+    surum: settings.surum,
   };
   try {
     await saveSettings(next);
@@ -262,6 +264,7 @@ $('s-form').addEventListener('submit', async (ev) => {
     await refresh();
   } catch (e) {
     fail(e);
+    if ((e as { status?: number }).status === 409) await refresh().catch(() => undefined);
   }
 });
 
@@ -310,13 +313,12 @@ $('reset-stats').addEventListener('click', async () => {
   const mode = await detectMode();
   $('local-banner').hidden = mode === 'sunucu';
   $('logout').hidden = mode !== 'sunucu';
-  if (mode === 'sunucu' && !hasAdminKey()) return showLogin();
   try {
     await refresh();
     $('app').hidden = false;
   } catch (e) {
     const err = e as Error & { status?: number };
-    if (err.status === 401) { clearAdminKey(); showLogin(); }
+    if (err.status === 401) showLogin();
     // Sunucuya ulaşılamadı: boş bir panel gösterilmez; giriş ekranından yeniden denenebilir.
     else if (mode === 'sunucu') showLogin(err.message);
     else { $('app').hidden = false; toast(err.message, true); }

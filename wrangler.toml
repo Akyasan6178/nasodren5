@@ -1,0 +1,21 @@
+# Cloudflare Pages projesi (frontend). API Worker'ının yapılandırması: worker/wrangler.toml
+#   Build komutu:   npm run build        (her zaman sunucu modu; VITE_VERI_MODU ayarlamayın)
+#   Çıktı dizini:   dist
+#   Deploy:         npx wrangler pages deploy dist --project-name nasodren5 --branch main
+#
+# /api/* istekleri functions/api/[[path]].js tarafından service binding ile API Worker'ına iletilir:
+# tarayıcı için aynı origin (CORS yok), Worker'ın herkese açık adresi yok.
+
+name = "nasodren5"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-09-01"
+
+# Production (main dalı) → production API Worker'ı
+[[services]]
+binding = "API"
+service = "nasodren5-api"
+
+# Preview dağıtımları (main dışındaki dallar) → preview API Worker'ı
+[[env.preview.services]]
+binding = "API"
+service = "nasodren5-api-preview"

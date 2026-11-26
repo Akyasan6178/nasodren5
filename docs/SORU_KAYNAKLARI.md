@@ -116,3 +116,4 @@ kullanılmadı. Havuz genişletilirken bu kaynaklarla yeniden çapraz kontrol ya
 2. `public/data/varsayilan-sorular.json` dosyasını düzenleyin. Kimlikler kararlı olmalı (`kategori-NN`),
    her soruda üç yanlış şık ve aynı sırada üç yanlış açıklaması bulunmalı.
 3. `npm run test:seed` ile şema ve içerik denetimini çalıştırın.
+4. `node scripts/seed-migration.mjs --yeni` ile Supabase seed migration'ını üretin ve `npm test` çalıştırın (bkz. `docs/OPERASYON.md`).
