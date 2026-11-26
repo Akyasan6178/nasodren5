@@ -58,7 +58,7 @@ test('eski JSON kurulumu: sorular, ayarlar ve istatistik aktarılır; ikinci ça
 
 test('kaynak yoksa yalnızca seed eklenir ve var olan düzenlemelere dokunulmaz', async (t) => {
   const { db, dir, backups } = await setup(t);
-  await db.query(`update public.questions set ipucu = 'Elle değişti' where id = 'sinus-01'`);
+  await db.query(`update public.n5_questions set ipucu = 'Elle değişti' where id = 'sinus-01'`);
   const r = await importData({ url: db.url, key: db.serviceKey, sourceDir: join(dir, 'yok'), apply: true, backupDir: backups, log: quiet });
   assert.deepEqual(r.problems, []);
   assert.equal(r.after.questions.length, 30);

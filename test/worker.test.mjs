@@ -27,7 +27,7 @@ const start = async (ip = freshIp()) => {
   return r.json;
 };
 const answer = (g, body, opts = {}) => s.request('POST', `/api/oyun/oturum/${g.token}/cevap`, { body, ...opts });
-const stats = async () => (await s.db.query('select games::int, finished::int, total_correct::int from public.stats_totals')).rows[0];
+const stats = async () => (await s.db.query('select games::int, finished::int, total_correct::int from public.n5_stats_totals')).rows[0];
 
 // ---------- yapılandırma / fail-closed ----------
 
@@ -185,7 +185,7 @@ test('Worker yeniden başlatılınca (deploy) oturum Durable Object deposundan d
     const r = await b.request('POST', `/api/oyun/oturum/${g.token}/cevap`, { body: { index: 1, sureDoldu: true } });
     assert.equal(r.status, 200);
     assert.equal(r.json.dogruSayisi, 1, 'önceki cevap korunmuş olmalı');
-    assert.equal((await db.query('select games::int from public.stats_totals')).rows[0].games, 1);
+    assert.equal((await db.query('select games::int from public.n5_stats_totals')).rows[0].games, 1);
     await b.close();
   } finally {
     await db.close();
@@ -251,7 +251,7 @@ test('yönetici değişiklikleri Supabase\'de kalıcı; ayarlarda eski sürüm 4
   const { cookie } = await s.login(ADMIN_PASSWORD, freshIp());
   const q = { ...seed[3], ipucu: 'Panelden güncellendi' };
   assert.equal((await s.request('PUT', `/api/sorular/${q.id}`, { body: q, cookie })).status, 200);
-  assert.equal((await s.db.query('select ipucu from public.questions where id = $1', [q.id])).rows[0].ipucu, 'Panelden güncellendi');
+  assert.equal((await s.db.query('select ipucu from public.n5_questions where id = $1', [q.id])).rows[0].ipucu, 'Panelden güncellendi');
   const added = await s.request('POST', '/api/sorular', { body: { ...seed[4], id: undefined, soru: 'Test sorusu?' }, cookie });
   assert.equal(added.status, 201);
   assert.equal((await s.request('DELETE', `/api/sorular/${added.json.id}`, { cookie })).status, 200);

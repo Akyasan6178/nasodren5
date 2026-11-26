@@ -1,10 +1,10 @@
 # Nasodren 5 API Worker'ı (Cloudflare Workers + Durable Objects).
-# Deploy:   npx wrangler deploy -c worker/wrangler.toml                 (production)
-#           npx wrangler deploy -c worker/wrangler.toml --env preview   (preview)
+# Deploy:   npm run worker:deploy   (wrangler deploy -c worker/wrangler.toml --env="")
+# Yalnızca production ortamı vardır (preview kullanılmaz: veritabanı ortak Supabase projesidir).
 # Secret'lar (değerleri repoya yazmayın):
-#   npx wrangler secret put ADMIN_PASSWORD        -c worker/wrangler.toml [--env preview]
-#   npx wrangler secret put SUPABASE_URL          -c worker/wrangler.toml [--env preview]
-#   npx wrangler secret put SUPABASE_SERVICE_KEY  -c worker/wrangler.toml [--env preview]
+#   npx wrangler secret put ADMIN_PASSWORD        -c worker/wrangler.toml --env=""
+#   npx wrangler secret put SUPABASE_URL          -c worker/wrangler.toml --env=""
+#   npx wrangler secret put SUPABASE_SERVICE_KEY  -c worker/wrangler.toml --env=""
 # Ayrıntılar: docs/OPERASYON.md
 #
 # Hesap kimliği burada tutulmaz: CLOUDFLARE_ACCOUNT_ID ortam değişkeni ya da `wrangler login` kullanılır.
@@ -37,34 +37,5 @@ name = "RATE_LIMITER"
 class_name = "RateLimiter"
 
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["GameSession", "Room", "RateLimiter"]
-
-# ---------------------------------------------------------------------------
-# Preview ortamı: ayrı Worker (nasodren5-api-preview), ayrı Durable Object'ler ve ayrı secret'lar.
-# Preview'u production Supabase projesine BAĞLAMAYIN; ayrı bir Supabase projesi kullanın.
-# ---------------------------------------------------------------------------
-[env.preview]
-name = "nasodren5-api-preview"
-workers_dev = false
-preview_urls = false
-
-[env.preview.vars]
-ORTAM = "preview"
-ALLOWED_ORIGINS = ""
-
-[[env.preview.durable_objects.bindings]]
-name = "GAME_SESSION"
-class_name = "GameSession"
-
-[[env.preview.durable_objects.bindings]]
-name = "ROOM"
-class_name = "Room"
-
-[[env.preview.durable_objects.bindings]]
-name = "RATE_LIMITER"
-class_name = "RateLimiter"
-
-[[env.preview.migrations]]
 tag = "v1"
 new_sqlite_classes = ["GameSession", "Room", "RateLimiter"]

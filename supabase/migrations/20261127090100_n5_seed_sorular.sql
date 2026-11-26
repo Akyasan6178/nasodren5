@@ -1,5 +1,14 @@
 -- OTOMATİK ÜRETİLDİ: node scripts/seed-migration.mjs (kaynak: public/data/varsayilan-sorular.json)
 -- Elle düzenlemeyin. Var olan sorulara dokunmaz; yalnızca eksik kimlikleri ekler.
+-- Supabase SQL Editor'e TAMAMINI yapıştırıp çalıştırın (tek işlem). Önce şema migration'ı uygulanmış olmalı.
+begin;
+do $n5$
+begin
+  if not exists (select 1 from public.n5_migrations where surum = '20261127090000') then
+    raise exception 'N5: önce şema migration''ı (20261127090000_n5_sema.sql) uygulanmalı. Hiçbir değişiklik yapılmadı.';
+  end if;
+end
+$n5$;
 select public.n5_soru_tohumla($n5seed$[
   {
     "id": "sinus-01",
@@ -602,3 +611,5 @@ select public.n5_soru_tohumla($n5seed$[
     "olusturma": "2026-11-26T00:00:00.000Z"
   }
 ]$n5seed$::jsonb);
+insert into public.n5_migrations (surum) values ('20261127090100');
+commit;

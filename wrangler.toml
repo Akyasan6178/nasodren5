@@ -10,12 +10,12 @@ name = "nasodren5"
 pages_build_output_dir = "./dist"
 compatibility_date = "2025-09-01"
 
-# Production (main dalı) → production API Worker'ı
+# Production (main dalı) → API Worker'ı. Preview dağıtımı kullanılmaz (ortak veritabanı; bkz. docs/OPERASYON.md).
 [[services]]
 binding = "API"
 service = "nasodren5-api"
 
-# Preview dağıtımları (main dışındaki dallar) → preview API Worker'ı
-[[env.preview.services]]
-binding = "API"
-service = "nasodren5-api-preview"
+# Preview (main dışındaki dallar): API bağlaması YOK. Yanlışlıkla bir preview dağıtımı oluşursa /api 503 döner
+# ve ortak veritabanına hiçbir şey yazılamaz. Ayrıca panelden otomatik preview dağıtımlarını kapatın.
+[env.preview.vars]
+N5_PREVIEW = "api-kapali"

@@ -24,30 +24,51 @@ const rpc = async (db, fn, args = {}, role = 'service_role') => {
 };
 const code = async (p) => p.then(() => 'ok', (e) => e.code);
 
-test('migration\'lar sıfırdan kurulur, yeniden uygulanınca hiçbir şey değişmez', async () => {
+const N5_TABLES = ['n5_data_imports', 'n5_game_results', 'n5_migrations', 'n5_question_stats', 'n5_questions', 'n5_settings', 'n5_stats_totals'];
+
+test('migration\'lar sıfırdan kurulur; ikinci kez uygulanmaya çalışılınca hata verir ve hiçbir şey değişmez', async () => {
   const db = await openDatabase();
-  const tables = (await db.query(`select tablename from pg_tables where schemaname = 'public' and tablename not like 'n5_emulator%' order by 1`)).rows.map((r) => r.tablename);
-  assert.deepEqual(tables, ['data_imports', 'game_results', 'question_stats', 'questions', 'settings', 'stats_totals']);
-  assert.equal((await db.query('select count(*)::int c from public.questions')).rows[0].c, 30);
-  assert.equal((await db.query('select count(*)::int c from public.settings')).rows[0].c, 1);
-  assert.equal((await db.query('select games::int from public.stats_totals')).rows[0].games, 0);
-  // Migration'ları ikinci kez (izleme tablosu olmadan, ham SQL olarak) çalıştırmak da güvenli olmalı
-  for (const f of migrationFiles()) await db.exec(readFileSync(join(MIGRATIONS_DIR, f), 'utf8'));
-  assert.equal((await db.query('select count(*)::int c from public.questions')).rows[0].c, 30);
+  const tables = (await db.query(`select tablename from pg_tables where schemaname = 'public' order by 1`)).rows.map((r) => r.tablename);
+  assert.deepEqual(tables, N5_TABLES);
+  assert.equal((await db.query('select count(*)::int c from public.n5_questions')).rows[0].c, 30);
+  assert.equal((await db.query('select count(*)::int c from public.n5_settings')).rows[0].c, 1);
+  assert.equal((await db.query('select games::int from public.n5_stats_totals')).rows[0].games, 0);
+  assert.deepEqual((await db.query('select surum from public.n5_migrations order by 1')).rows.map((r) => r.surum),
+    migrationFiles().map((f) => f.slice(0, 14)));
+  await db.exec(`update public.n5_questions set ipucu = 'değişmemeli' where id = 'sinus-01'`);
+  // SQL Editor'de aynı dosyalar yanlışlıkla yeniden çalıştırılırsa: ön kontrol / sürüm kaydı hata verir,
+  // işlem geri alınır, veri ve nesneler değişmez.
+  for (const f of migrationFiles()) {
+    await assert.rejects(db.exec(readFileSync(join(MIGRATIONS_DIR, f), 'utf8')), f);
+    await db.exec('rollback').catch(() => undefined);
+  }
+  assert.equal((await db.query('select count(*)::int c from public.n5_questions')).rows[0].c, 30);
+  assert.equal((await db.query(`select ipucu from public.n5_questions where id = 'sinus-01'`)).rows[0].ipucu, 'değişmemeli');
+  assert.equal((await db.query('select count(*)::int c from public.n5_migrations')).rows[0].c, migrationFiles().length);
   assert.deepEqual(await applyMigrations(db), []);
+  await db.close();
+});
+
+test('seed migration\'ı şema migration\'ı olmadan uygulanamaz', async () => {
+  const db = await openDatabase({ migrations: false });
+  const seedFile = migrationFiles().find((f) => f.endsWith('_n5_seed_sorular.sql'));
+  await assert.rejects(db.exec(readFileSync(join(MIGRATIONS_DIR, seedFile), 'utf8')));
+  await db.exec('rollback').catch(() => undefined);
+  assert.equal((await db.query(`select count(*)::int c from pg_class where relnamespace = 'public'::regnamespace`)).rows[0].c, 0);
   await db.close();
 });
 
 test('RLS açık, anon ve authenticated hiçbir tabloyu ve fonksiyonu kullanamaz', async () => {
   const db = await openDatabase();
-  const rls = (await db.query(`select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and relname not like 'n5_emulator%'`)).rows;
+  const rls = (await db.query(`select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r'`)).rows;
+  assert.equal(rls.length, N5_TABLES.length);
   for (const r of rls) assert.equal(r.relrowsecurity, true, `${r.relname} RLS kapalı`);
   for (const role of ['anon', 'authenticated']) {
-    for (const t of ['questions', 'settings', 'stats_totals', 'question_stats', 'game_results', 'data_imports']) {
+    for (const t of N5_TABLES) {
       assert.equal(await code(asRole(db, role, `select * from public.${t}`)), '42501', `${role} ${t} okuyabildi`);
       assert.equal(await code(asRole(db, role, `delete from public.${t}`)), '42501', `${role} ${t} silebildi`);
     }
-    assert.equal(await code(asRole(db, role, `insert into public.questions (id, soru, dogru, yanlislar, kategori, ipucu, aciklama, yanlis_aciklamalar) values ('x','s','d','{a,b,c}','k','i','a','{a,b,c}')`)), '42501');
+    assert.equal(await code(asRole(db, role, `insert into public.n5_questions (id, soru, dogru, yanlislar, kategori, ipucu, aciklama, yanlis_aciklamalar) values ('x','s','d','{a,b,c}','k','i','a','{a,b,c}')`)), '42501');
     for (const fn of ['n5_oyun_verisi()', 'n5_admin_verisi()', 'n5_genel_durum()', 'n5_istatistik_sifirla()']) {
       assert.equal(await code(asRole(db, role, `select public.${fn}`)), '42501', `${role} ${fn} çalıştırabildi`);
     }

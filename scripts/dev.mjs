@@ -5,7 +5,7 @@
 //   başlatılır ve Worker ona bağlanır. Docker gerekmez. Yönetici parolası: ADMIN_PASSWORD ortam
 //   değişkeni ya da geliştirme varsayılanı.
 // * worker/.dev.vars VARSA: Worker oradaki SUPABASE_URL / SUPABASE_SERVICE_KEY / ADMIN_PASSWORD ile
-//   çalışır (ör. yerel `supabase start` ya da ayrı bir geliştirme projesi). Production verisine bağlamayın.
+//   çalışır. Ortak production Supabase projesine BAĞLAMAYIN (yerel denemeler gerçek veriye karışır).
 //
 // Adresler: oyun http://localhost:5173  ·  Worker http://127.0.0.1:8787  ·  DB emülatörü http://127.0.0.1:54321
 import { spawn } from 'node:child_process';

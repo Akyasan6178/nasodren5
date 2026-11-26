@@ -109,10 +109,10 @@ test('1 host + 4 oyuncu: soru açıkken puan, seri ve doğru şık hiçbir ekran
   // Oyun sonucu Supabase'e (soru başarısı) yazılır
   await host.next((v) => v.phase === 'bitti');
   for (let i = 0; i < 50; i++) {
-    if ((await s.db.query(`select count(*)::int c from public.game_results where tur = 'canli'`)).rows[0].c) break;
+    if ((await s.db.query(`select count(*)::int c from public.n5_game_results where tur = 'canli'`)).rows[0].c) break;
     await new Promise((r) => setTimeout(r, 100));
   }
-  assert.equal((await s.db.query(`select count(*)::int c from public.game_results where tur = 'canli'`)).rows[0].c, 1);
+  assert.equal((await s.db.query(`select count(*)::int c from public.n5_game_results where tur = 'canli'`)).rows[0].c, 1);
 });
 
 test('yetkisiz host komutu ve sahte oyuncu cevabı reddedilir; istemci zamanlamayı değiştiremez', async () => {

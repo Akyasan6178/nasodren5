@@ -27,30 +27,36 @@ grant usage on schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
-create table if not exists n5_emulator_migrations (name text primary key, applied timestamptz default now());
 `;
 
 /** Migration dosyaları (ad sırasıyla). */
 export const migrationFiles = () => readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
 
-/** PGlite veritabanı açar, Supabase rollerini kurar ve uygulanmamış migration'ları uygular. */
-export async function openDatabase({ dataDir, migrations = true } = {}) {
+/**
+ * PGlite veritabanı açar, Supabase rollerini kurar ve uygulanmamış migration'ları uygular.
+ * `setup`: migration'lardan ÖNCE çalışan SQL (ör. ortak projedeki diğer oyunları taklit eden nesneler).
+ */
+export async function openDatabase({ dataDir, migrations = true, setup } = {}) {
   const db = dataDir ? new PGlite(dataDir) : new PGlite();
   await db.exec(BOOTSTRAP);
+  if (setup) await db.exec(setup);
   if (migrations) await applyMigrations(db);
   return db;
 }
 
+/** Uygulanmış sürümler: migration'ların kendilerinin yazdığı public.n5_migrations tablosundan. */
+async function appliedVersions(db) {
+  const exists = (await db.query(`select to_regclass('public.n5_migrations') is not null as e`)).rows[0].e;
+  return new Set(exists ? (await db.query('select surum from public.n5_migrations')).rows.map((r) => r.surum) : []);
+}
+
+/** Uygulanmamış migration'ları sırayla çalıştırır. Her dosya kendi begin/commit'iyle tek işlemdir. */
 export async function applyMigrations(db) {
-  const applied = new Set((await db.query('select name from n5_emulator_migrations')).rows.map((r) => r.name));
+  const applied = await appliedVersions(db);
   const ran = [];
   for (const name of migrationFiles()) {
-    if (applied.has(name)) continue;
-    const sql = readFileSync(join(MIGRATIONS_DIR, name), 'utf8');
-    await db.transaction(async (tx) => {
-      await tx.exec(sql);
-      await tx.query('insert into n5_emulator_migrations (name) values ($1)', [name]);
-    });
+    if (applied.has(name.slice(0, 14))) continue;
+    await db.exec(readFileSync(join(MIGRATIONS_DIR, name), 'utf8'));
     ran.push(name);
   }
   return ran;

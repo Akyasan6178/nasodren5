@@ -1,3 +1,0 @@
-# Supabase CLI proje yapılandırması (yerel CLI komutları için; production ayarları Supabase panelindedir).
-# Migration'lar: supabase/migrations  ·  Ayrıntılar: docs/OPERASYON.md
-project_id = "nasodren5"

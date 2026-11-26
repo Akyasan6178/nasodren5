@@ -13,14 +13,12 @@
     "test:canli": "node scripts/canli-shot.mjs http://localhost:5173 shots",
     "worker:check": "wrangler deploy -c worker/wrangler.toml --env=\"\" --dry-run --outdir .wrangler/dry-run",
     "worker:deploy": "wrangler deploy -c worker/wrangler.toml --env=\"\"",
-    "worker:deploy:preview": "wrangler deploy -c worker/wrangler.toml --env preview",
     "worker:logs": "wrangler tail -c worker/wrangler.toml --env=\"\"",
     "pages:deploy": "wrangler pages deploy dist --project-name nasodren5 --branch main",
     "db:seed-sql": "node scripts/seed-migration.mjs",
     "db:import": "node scripts/supabase-import.mjs",
     "scan:bundle": "node scripts/scan-bundle.mjs",
-    "db:seed-check": "node scripts/seed-migration.mjs --check",
-    "worker:check:preview": "wrangler deploy -c worker/wrangler.toml --env preview --dry-run --outdir .wrangler/dry-run-preview"
+    "db:seed-check": "node scripts/seed-migration.mjs --check"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.3.0",

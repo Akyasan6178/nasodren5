@@ -16,13 +16,14 @@ Tarayıcı ──HTTPS──► Cloudflare Pages ──(statik dosyalar: dist/)
                                ├─ Durable Object GameSession  (tek oyunculu oturum, oturum başına)
                                ├─ Durable Object Room         (çok oyunculu oda + SSE, PIN başına)
                                ├─ Durable Object RateLimiter  (merkezi hız sınırı, anahtar başına)
-                               └─ Supabase PostgreSQL  (sorular, ayarlar, istatistik; yalnızca RPC)
+                               └─ Supabase PostgreSQL  (ortak proje; yalnızca public.n5_* nesneleri, RPC ile)
 ```
 
 - **Pages**, sunucu modu Vite build'ini (`dist/`) yayınlar. Seed dosyası ve cevap anahtarı build'e girmez.
 - **Worker**, API'nin tamamıdır ve Supabase ile konuşan tek katmandır. Herkese açık bir adresi yoktur
   (`workers_dev = false`); yalnızca Pages üzerinden çağrılır.
-- **Supabase**: tablolar RLS ile kapalıdır. Worker, service-role anahtarıyla yalnızca `public.n5_*`
+- **Supabase**: önceki dört oyunla **ortak** projedir. Beşinci oyunun bütün nesneleri `public` şemasında
+  `n5_` önekiyle durur; diğer oyunların nesnelerine dokunulmaz. Tablolar RLS ile kapalıdır. Worker, service-role anahtarıyla yalnızca `public.n5_*`
   fonksiyonlarını çağırır. Tarayıcı Supabase'e hiç bağlanmaz.
 - **Durable Objects**: oturum ve oda durumunu tek yetkili koordinatörde tutar. Bu durum kalıcıdır,
   yeniden deploy sonrasında da sürer. Hız sınırı sayaçlarının tüm Worker kopyalarında ortak ve atomik
@@ -42,14 +43,15 @@ npm run dev     # oyun http://localhost:5173  (panel: /admin, çok oyunculu: /ca
 `npm run dev` üç şeyi birlikte başlatır:
 
 1. **Yerel veritabanı.** PGlite ile WASM üzerinde gerçek PostgreSQL çalışır; Docker gerekmez. Migration'lar
-   ve 30 soruluk seed otomatik uygulanır. Veriler `.wrangler/dev-db` içinde kalır.
+   ve 30 soruluk seed otomatik uygulanır. Veriler `.wrangler/dev-db` içinde kalır. Bu klasör `n5_` öncesi bir
+   sürümden kaldıysa bir kez silin (migration ön kontrolü eski nesneleri görünce durur).
 2. **API Worker'ı.** `wrangler dev` ile http://127.0.0.1:8787 adresinde çalışır; Durable Object'ler dahildir.
 3. **Vite.** `/api` isteklerini Worker'a iletir.
 
 Yönetici parolası `ADMIN_PASSWORD` ortam değişkeniyle verilir. Verilmezse yalnızca yerel geliştirmede
-`siklamen` kullanılır; bu değer production'da reddedilir. Gerçek bir Supabase projesine (ör. yerel
-`supabase start`) bağlanmak için `worker/.dev.vars` dosyası oluşturun; değişken adları
-`worker/.dev.vars.example` içindedir. Bu dosya varsa yerel veritabanı başlatılmaz.
+`siklamen` kullanılır; bu değer production'da reddedilir. Başka bir veritabanına bağlanmak için
+`worker/.dev.vars` dosyası oluşturulabilir (`worker/.dev.vars.example`); ortak production projesine
+**bağlamayın**. Preview ortamı yoktur: değişiklikler yerelde denenir.
 
 Diğer komutlar:
 
@@ -69,6 +71,7 @@ npm run test:canli     # Playwright çok oyunculu duman testi: 1 host + 4 telefo
 | Dosya | Ne doğrular |
 | --- | --- |
 | `test/seed.test.mjs` | Soru havuzunun şeması ve içeriği, siklamen sorularında tedavi/marka iddiası olmaması, Supabase seed migration'ının JSON ile senkron olması |
+| `test/izolasyon.test.mjs` | Ortak proje izolasyonu: önceki oyunları taklit eden nesneler varken migration'lar uygulanır. Kapsam: o nesnelerin tanım, yetki, policy ve verisinin değişmemesi, anon erişimlerinin bozulmaması, her yeni nesnenin `n5_` önekli olması, çakışmada hiçbir şeyin uygulanmaması |
 | `test/sql.test.mjs` | Gerçek PostgreSQL (PGlite) üzerinde migration'lar. Kapsam: RLS ve `anon`/`authenticated` erişimi, fonksiyon güvenliği, kayıpsız veri eşlemesi, idempotent seed, atomik ve tek seferlik istatistik, ayarlarda sürüm çakışması, tek işlemlik içe aktarma |
 | `test/motor.test.mjs` | Saf oyun motorları; zaman dışarıdan verildiği için deterministiktir. Kapsam: oturum kuralları, jokerler, süre dolumu, odada soru açıkken puanların gizlenmesi, hız sınırı penceresi |
 | `test/worker.test.mjs` | Gerçek workerd üzerinde Worker ve Durable Objects. Kapsam: fail-closed, sağlık kontrolü, açık API sızıntısı, eşzamanlı cevap yarışı, istatistik bütünlüğü, veritabanı hatasından kurtulma, yeniden başlatma, yönetici oturumu, CSRF/CORS, hız sınırları |
@@ -95,9 +98,9 @@ Supabase SQL'i testlerde PGlite (WASM ile çalışan PostgreSQL) ve küçük bir
 
 | Nerede | Ne |
 | --- | --- |
-| Supabase `questions`, `settings`, `stats_totals`, `question_stats`, `game_results` | **Production verisi.** Paneldeki tüm değişiklikler buraya yazılır |
+| Ortak Supabase projesi: `n5_questions`, `n5_settings`, `n5_stats_totals`, `n5_question_stats`, `n5_game_results`, `n5_data_imports`, `n5_migrations` | **Production verisi.** Paneldeki tüm değişiklikler buraya yazılır |
 | `public/data/varsayilan-sorular.json` | **Seed (varsayılan soru havuzu).** 30 doğrulanmış soru, 6 kategori. Kaynakları: [docs/SORU_KAYNAKLARI.md](docs/SORU_KAYNAKLARI.md) |
-| `supabase/migrations/*_n5_seed_sorular.sql` | Seed'in Supabase migration'ı (JSON'dan üretilir: `npm run db:seed-sql`) |
+| `supabase/migrations/*.sql` | Şema ve seed migration'ları. Supabase SQL Editor'den elle, tek işlem olarak uygulanır (docs/OPERASYON.md §2.1). Seed migration'ı JSON'dan üretilir: `npm run db:seed-sql` |
 | Durable Object deposu | Geçici oyun oturumları (2 saat) ve çok oyunculu odalar (3 saat / sunucu ekranı kapalıysa 30 dk) |
 
 - **İstatistik** istemciden bildirilmez. Oyun bittiğinde Worker, doğruladığı cevaplardan sonucu oyun
