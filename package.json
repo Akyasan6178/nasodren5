@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "node server.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:seed": "node --test test/seed.test.mjs",
     "test:visual": "node scripts/shot.mjs http://localhost:5173/ shots",
     "test:canli": "node scripts/canli-shot.mjs http://localhost:5173 shots"
   },

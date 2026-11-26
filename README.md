@@ -11,7 +11,11 @@ npm install
 npm run dev            # geliştirme: http://localhost:5173  (panel: /admin, çok oyunculu: /canli)
 npm run build          # üretim derlemesi -> dist/
 npm start              # üretim sunucusu: http://localhost:8080 (panel: /admin)
+npm test               # birim + entegrasyon testleri (Node'un yerleşik test çalıştırıcısı)
 ```
+
+Taze bir clone'da ek dosya gerekmez: ilk API isteğinde `data/questions.json`, repodaki
+varsayılan soru havuzundan otomatik oluşturulur (bkz. "Veri").
 
 Ortam değişkenleri:
 
@@ -31,12 +35,56 @@ Ortam değişkenleri:
 - Oyun ayarları: oyun başına soru sayısı (varsayılan 15), soru başına süre (varsayılan 30 sn; 0 = süresiz) ve "yanlış cevapta / süre dolunca oyun bitsin" kuralı.
 - JSON olarak dışa ve içe aktarma (yedekleme ya da başka kuruluma taşıma).
 
-Sorular sunucuda `data/questions.json` dosyasında saklanır. Bu klasör git'e eklenmez. İlk açılışta
-`public/data/varsayilan-sorular.json` içindeki 21 örnek soruyla başlatılır.
+## Veri
+
+İki ayrı soru kaynağı vardır:
+
+| Dosya | Ne | Git'te mi? |
+| --- | --- | --- |
+| `public/data/varsayilan-sorular.json` | **Seed (varsayılan soru havuzu).** 30 doğrulanmış soru, 6 kategori. Yalnızca ilk kurulumda okunur. Build sırasında `dist/data/` altına kopyalanır | Evet |
+| `data/questions.json` | **Çalışma verisi.** Oyunun ve yönetici panelinin kullandığı gerçek soru listesi. Paneldeki tüm ekleme, düzenleme, silme ve içe aktarmalar buraya yazılır | Hayır (`/data/` git dışı) |
+| `data/settings.json`, `data/stats.json` | Oyun ayarları ve istatistikler (panelden) | Hayır |
+
+- **Taze kurulum:** Sunucu ilk API isteğinde `data/` klasörünü oluşturur. `data/questions.json` yoksa seed'i
+  oraya kopyalar. Var olan bir `data/questions.json` asla seed ile değiştirilmez.
+- **Başlatma hatası:** Seed okunamazsa ya da bozuksa istek genel bir 500 hatası alır, ayrıntı sunucu
+  günlüğüne yazılır ve boş soru dosyası oluşturulmaz. Sorun giderilince sonraki istek, sunucu yeniden
+  başlatılmadan başarılı olur.
+- **Bozuk veri dosyası:** `data/*.json` bozuksa sunucu onu sessizce boş listeyle değiştirmez; ilgili
+  istekler hata verir ve dosya olduğu gibi korunur. Dosyayı yedekten geri yükleyin.
+- **Eşzamanlı yazma:** Aynı dosyayı değiştiren istekler dosya başına tek kuyrukta sırayla çalışır.
+  Her işlem en güncel içeriği okur, değiştirir ve geçici dosya + `rename` ile atomik yazar.
+- **Yedekleme:** `data/` klasörü git'te değildir ve paneldeki tüm değişiklikler yalnızca orada durur.
+  Üretimde bu klasör kalıcı bir diskte olmalı ve düzenli yedeklenmelidir. Gerekirse panelden "JSON dışa aktar" da kullanılabilir.
+- **Soru havuzunu güncellemek:** Çalışan bir kurulumda soruları panelden yönetin. Yeni kurulumların
+  varsayılan havuzunu değiştirmek için `public/data/varsayilan-sorular.json` dosyasını düzenleyin,
+  kaynakları `docs/SORU_KAYNAKLARI.md` belgesine ekleyin ve `npm run test:seed` çalıştırın. Seed
+  değişikliği var olan kurulumların `data/questions.json` dosyasını etkilemez; oraya aktarmak için
+  paneldeki "JSON içe aktar" kullanılır (seed ile aynı biçim: soru dizisi).
+- **Hata yanıtları:** API, kullanıcıya yalnızca doğrulama ve yetki gibi anlamlı mesajları döndürür.
+  Beklenmeyen hatalarda dosya yolu ya da sistem mesajı göndermez; ayrıntı sunucu günlüğüne yazılır.
+
+Soru içeriğinin kaynakları ve hangi sorunun hangi kaynağa dayandığı `docs/SORU_KAYNAKLARI.md` içindedir.
 
 `dist/` klasörü sunucusuz, statik olarak da barındırılabilir (Netlify, GitHub Pages vb.). Bu
-durumda API olmadığı için oyun ve panel tarayıcının localStorage'ını kullanır. Panel bunu bir
-uyarı bandıyla gösterir. Sorular yalnızca o tarayıcıda saklanır; ortak kullanım için `npm start` gerekir.
+durumda API olmadığı için oyun ve panel tarayıcının localStorage'ını kullanır ve sorular
+`dist/data/varsayilan-sorular.json` dosyasından yüklenir. Panel bunu bir uyarı bandıyla gösterir.
+Sorular yalnızca o tarayıcıda saklanır; ortak kullanım için `npm start` gerekir.
+
+## Testler
+
+```bash
+npm test               # tüm testler (test/*.test.mjs)
+npm run test:seed      # yalnızca varsayılan soru havuzunun şema / içerik denetimi
+npm run test:visual    # Playwright görsel duman testi (önce npm run dev)
+npm run test:canli     # Playwright çok oyunculu duman testi (önce npm run dev)
+```
+
+- `test/seed.test.mjs`: her sorunun zorunlu alanları, benzersiz kimlik ve şıklar, üç yanlış şık + üç
+  açıklama, uzunluk sınırları ve sunucu doğrulamasından kırpılmadan geçmesi.
+- `test/api.test.mjs`: geçici dizinde gerçek HTTP sunucusuyla taze kurulum, başlatma hatasının
+  önbellekte kalmaması, bozuk JSON'un korunması, 30 paralel sonuç isteği ile karışık paralel yazmalar,
+  hata yanıtlarında iç ayrıntı sızmaması.
 
 ## Oyun
 
@@ -116,7 +164,10 @@ src/shared/store.ts        veri katmanı (API ya da localStorage)
 src/game/                  oyun: quiz.ts (kurallar), game.ts (akış), render/ (Pixi sahnesi)
 src/admin/                 yönetici paneli
 src/canli/                 çok oyunculu arayüz: host.ts (büyük ekran), player.ts (telefon), net.ts (ortak)
-public/data/               varsayılan sorular
+public/data/               varsayılan soru havuzu (seed)
+data/                      çalışma verisi (git dışı, sunucu oluşturur)
+docs/SORU_KAYNAKLARI.md    soru içeriğinin kaynakları
+test/                      birim + entegrasyon testleri (node --test)
 scripts/shot.mjs           Playwright ile görsel duman testi
 scripts/canli-shot.mjs     çok oyunculu uçtan uca duman testi
 ```

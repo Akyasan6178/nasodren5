@@ -64,7 +64,7 @@ export function createLive({ getGame, recordAnswers }) {
 
   function createRoom(settings) {
     if (rooms.size >= MAX_ROOMS) sweep(true);
-    if (rooms.size >= MAX_ROOMS) throw Object.assign(new Error('Şu anda çok fazla açık oda var, biraz sonra deneyin.'), { status: 503 });
+    if (rooms.size >= MAX_ROOMS) throw Object.assign(new Error('Şu anda çok fazla açık oda var, biraz sonra deneyin.'), { status: 503, expose: true });
     const room = {
       code: newCode(),
       hostToken: randomUUID(),
