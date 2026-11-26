@@ -10,21 +10,91 @@
 npm install
 npm run dev            # geliştirme: http://localhost:5173  (panel: /admin, çok oyunculu: /canli)
 npm run build          # üretim derlemesi -> dist/
-npm start              # üretim sunucusu: http://localhost:8080 (panel: /admin)
+npm start              # üretim sunucusu: http://localhost:8080 (ADMIN_PASSWORD zorunlu, bkz. "Production")
 npm test               # birim + entegrasyon testleri (Node'un yerleşik test çalıştırıcısı)
 ```
+
+Node.js 22.6 ya da üstü gerekir (testler Node'un yerleşik TypeScript tip silme desteğini kullanır).
 
 Taze bir clone'da ek dosya gerekmez: ilk API isteğinde `data/questions.json`, repodaki
 varsayılan soru havuzundan otomatik oluşturulur (bkz. "Veri").
 
-Ortam değişkenleri:
+## Production
 
-| Değişken         | Varsayılan  | Açıklama                    |
-| ---------------- | ----------- | --------------------------- |
-| `ADMIN_PASSWORD` | `siklamen`  | Yönetici paneli şifresi     |
-| `PORT`           | `8080`      | Üretim sunucusunun portu    |
+`npm start` (`server.mjs`) her zaman **production** modudur. `npm run dev` (Vite) **development** modudur.
 
-> Canlıya almadan önce `ADMIN_PASSWORD` değerini mutlaka değiştirin.
+### Ortam değişkenleri
+
+Değişken adları ve açıklamaları `.env.example` dosyasındadır. Sunucu `.env` dosyası okumaz; değerleri
+barındırma platformunun ortam değişkeni / gizli değer (secret) ayarıyla verin. Gerçek değerleri repoya koymayın.
+
+| Değişken | Zorunlu | Varsayılan | Açıklama |
+| --- | --- | --- | --- |
+| `ADMIN_PASSWORD` | **Production'da evet** | — | Yönetici paneli parolası |
+| `PORT` | Hayır | `8080` | Sunucu portu |
+| `TRUST_PROXY` | Hayır | `0` | Önündeki güvenilir ters vekil (nginx, yük dengeleyici) sayısı, `0`–`5` |
+| `ADMIN_LOGIN_MAX_FAILURES` / `ADMIN_LOGIN_WINDOW_SECONDS` | Hayır | `10` / `900` | Bir IP'nin pencere içindeki başarısız yönetici girişi sınırı |
+| `ROOM_CREATE_MAX` / `ROOM_CREATE_WINDOW_SECONDS` | Hayır | `20` / `900` | Bir IP'nin pencere içinde açabileceği çok oyunculu oda sayısı |
+| `GAME_START_MAX` / `GAME_START_WINDOW_SECONDS` | Hayır | `120` / `900` | Bir IP'nin pencere içinde başlatabileceği tek oyunculu oyun sayısı |
+
+### Yönetici parolası (fail-fast)
+
+Production sunucusu güvenli bir parola olmadan **başlamaz** ve 1 koduyla çıkar. Reddedilen değerler:
+
+- eksik ya da boş değer,
+- 12 karakterden kısa değer,
+- geliştirme varsayılanı ve bilinen zayıf değerler (`admin`, `password`, `123456…` vb.),
+- yalnızca birkaç farklı karakterden oluşan değer.
+
+Hata mesajı hangi değişkenin neden geçersiz olduğunu söyler; parolanın kendisi hiçbir zaman yazdırılmaz
+ya da günlüğe alınmaz. Parola karşılaştırması zamanlama saldırılarına karşı güvenli biçimde
+(SHA-256 + `timingSafeEqual`) yapılır ve yanlış parolada her zaman aynı genel yanıt döner.
+
+Development modunda `ADMIN_PASSWORD` verilmezse yalnızca yerel geliştirme için bilinen bir varsayılan
+parola kullanılır ve konsola uyarı yazılır. Bu varsayılan production'da reddedilir.
+
+### Hız sınırları
+
+Bellek içi, sabit pencereli sınırlar. Ek bağımlılık yoktur. Sınırlar ortam değişkenleriyle ayarlanır;
+geçersiz değerler varsayılana, aralık dışı değerler en yakın sınıra çekilir ve uyarı yazılır.
+
+- **Yönetici girişi:** Yalnızca başarısız denemeler sayılır; başarılı giriş o IP'nin sayacını sıfırlar.
+  Sınır aşılınca, pencere dolana kadar o IP'den gelen tüm yönetici istekleri (doğru parolayla bile) `429` alır.
+- **Oda açma ve oyun başlatma:** Her istek sayılır.
+- Sınır aşılınca `429` ve `Retry-After` (saniye) başlığı döner. Yanıtta genel bir mesaj vardır.
+- Süresi dolan kayıtlar düzenli olarak temizlenir. Tablo dolarsa (50.000 adres) yeni adresler sınırlanır,
+  bellek sınırsız büyümez.
+
+### Ters vekil (reverse proxy)
+
+`TRUST_PROXY=0` (varsayılan) iken istemci adresi doğrudan TCP bağlantısından alınır ve `X-Forwarded-For`
+yok sayılır; böylece sahte başlıkla sınır atlatılamaz. Sunucu bir ters vekil arkasındaysa, aradaki vekil
+sayısını `TRUST_PROXY=1` (ya da 2…) olarak verin. Bu durumda `X-Forwarded-For` listesinin sağından o kadar
+adres güvenilir sayılır. Vekil yoksa bu ayarı açmayın.
+
+### Ölçekleme sınırları
+
+Hız sınırı sayaçları, oyun oturumları, çok oyunculu odalar ve JSON yazma kuyruğu **tek bir Node sürecinin
+belleğindedir**. Birden fazla süreç ya da replica çalıştırılırsa:
+
+- her süreç kendi hız sınırını uygular (toplam sınır süreç sayısıyla katlanır),
+- bir süreçte başlayan oyun ya da oda diğerinde bulunamaz (yapışkan oturum gerekir),
+- aynı `data/` klasörüne yazan süreçler birbirinin yazmasını ezebilir.
+
+Bu yüzden tek süreç çalıştırın. Ölçeklemek gerekirse merkezi bir veri deposu ve merkezi hız sınırı
+(ör. veritabanı + Redis) gerekir.
+
+### Başlatma ve doğrulama
+
+```bash
+npm ci && npm run build
+ADMIN_PASSWORD='<güçlü parola>' npm start   # ya da platformun secret ayarıyla
+```
+
+1. Konsolda `Oyun: http://localhost:<port>/` görünmeli; `Başlatma durduruldu` görünüyorsa parolayı düzeltin.
+2. `/admin` ile giriş yapın.
+3. `/` adresinde bir oyun başlatın ve `/canli` adresinde bir oda açın.
+4. `data/` klasörünün kalıcı diskte olduğundan ve yedeklendiğinden emin olun.
 
 ## Yönetici paneli (`/admin`)
 
@@ -66,15 +136,38 @@ Ortam değişkenleri:
 
 Soru içeriğinin kaynakları ve hangi sorunun hangi kaynağa dayandığı `docs/SORU_KAYNAKLARI.md` içindedir.
 
-`dist/` klasörü sunucusuz, statik olarak da barındırılabilir (Netlify, GitHub Pages vb.). Bu
-durumda API olmadığı için oyun ve panel tarayıcının localStorage'ını kullanır ve sorular
-`dist/data/varsayilan-sorular.json` dosyasından yüklenir. Panel bunu bir uyarı bandıyla gösterir.
-Sorular yalnızca o tarayıcıda saklanır; ortak kullanım için `npm start` gerekir.
+### Sunucu modu ve yerel mod
+
+Veri modu **derleme sırasında** seçilir; çalışma anında tahmin edilmez.
+
+| Mod | Nasıl | Davranış |
+| --- | --- | --- |
+| **Sunucu** (varsayılan) | `npm run build` | Tüm veri API'den gelir. Cevaplar sunucuda değerlendirilir. API hatasında (ağ, zaman aşımı, `5xx`, bozuk yanıt) kullanıcıya hata ve **Tekrar dene** gösterilir. Yerel veriye **asla** düşülmez ve yerel veriye yazılmaz |
+| **Yerel** (statik) | `VITE_VERI_MODU=yerel npm run build` | Sunucusuz barındırma (Netlify, GitHub Pages vb.). Sorular `data/varsayilan-sorular.json` dosyasından yüklenir ve o tarayıcının localStorage'ında tutulur. Panel bunu bir uyarı bandıyla gösterir. Çok oyunculu mod çalışmaz |
+
+Yerel modda cevap anahtarı tarayıcıya iner; bu mod yalnızca güvenliğin önemli olmadığı demolar içindir.
+Sunucu modunda seed dosyası (`/data/varsayilan-sorular.json`) üretim sunucusu ve geliştirme sunucusu
+tarafından **sunulmaz** (404). Yerel moddan sunucu moduna geçişte yerel veriler otomatik aktarılmaz.
+
+### Tek oyunculu oyun ve istatistik
+
+- `POST /api/oyun/oturum` sunucuda bir oyun oturumu açar: sorular ve karışık şıklar gönderilir. Hangi
+  şıkkın doğru olduğu, açıklamalar ve ipuçları gönderilmez. Yazı boyutu seçimi için açıklamaların yalnızca
+  harfleri maskelenmiş kopyası gelir.
+- `POST /api/oyun/oturum/<anahtar>/cevap` `{ index, secim }` ya da `{ index, sureDoldu: true }`: sunucu
+  cevabı değerlendirir. Doğru şık ve dört şıkkın açıklaması yalnızca bu yanıtta, o soru için döner.
+  Aynı cevabın yeniden gönderimi aynı sonucu verir; farklı cevap `409`, sırası gelmemiş soru `409`,
+  geçersiz alan ya da değer `400`, bilinmeyen ya da süresi dolmuş oturum `404` alır.
+- `POST /api/oyun/oturum/<anahtar>/joker` `{ index, tur: 'fifty' | 'hint' | 'double' }`: jokerler de
+  sunucuda uygulanır.
+- İstatistik istemciden bildirilmez: oyun bittiğinde sunucu, doğruladığı cevaplardan bir kez yazar.
+  Eski `POST /api/sonuc` ucu `410` döner. Oturumlar 2 saat işlem görmezse silinir.
+- `GET /api/oyun` yalnızca oyun ayarlarını ve aktif soru sayısını döndürür.
 
 ## Testler
 
 ```bash
-npm test               # tüm testler (test/*.test.mjs)
+npm test               # tüm testler (test/*.test.mjs, Node 22.6+)
 npm run test:seed      # yalnızca varsayılan soru havuzunun şema / içerik denetimi
 npm run test:visual    # Playwright görsel duman testi (önce npm run dev)
 npm run test:canli     # Playwright çok oyunculu duman testi (önce npm run dev)
@@ -83,8 +176,18 @@ npm run test:canli     # Playwright çok oyunculu duman testi (önce npm run dev
 - `test/seed.test.mjs`: her sorunun zorunlu alanları, benzersiz kimlik ve şıklar, üç yanlış şık + üç
   açıklama, uzunluk sınırları ve sunucu doğrulamasından kırpılmadan geçmesi.
 - `test/api.test.mjs`: geçici dizinde gerçek HTTP sunucusuyla taze kurulum, başlatma hatasının
-  önbellekte kalmaması, bozuk JSON'un korunması, 30 paralel sonuç isteği ile karışık paralel yazmalar,
-  hata yanıtlarında iç ayrıntı sızmaması.
+  önbellekte kalmaması, bozuk JSON'un korunması, 30 paralel oyun ile karışık paralel yazmalar,
+  hata yanıtlarında ve günlükte iç ayrıntı / oturum anahtarı sızmaması.
+- `test/oyun.test.mjs`: açık API'de cevap anahtarı sızmaması, sunucu taraflı cevap doğrulama, geçersiz
+  değerler (negatif, aşırı büyük, NaN/sonsuz, metin, bilinmeyen alan), yeniden gönderim, jokerler,
+  istatistiğin yalnızca biten oyunlardan bir kez yazılması, oyun başlatma hız sınırı.
+- `test/canli.test.mjs`: gerçek SSE bağlantılarıyla (1 host + 4 oyuncu) soru açıkken puan, seri ve doğru
+  şıkkın hiçbir ekrana sızmaması; oda açma hız sınırı ve kapasite (503) davranışı.
+- `test/guvenlik.test.mjs`: production fail-fast (gerçek `server.mjs` süreci), parolanın çıktıda yer
+  almaması, ayar doğrulama, yönetici girişi hız sınırı ve `Retry-After`, proxy başlığı güveni, seed'in
+  statik olarak sunulmaması, bozuk URL'de çökmeme.
+- `test/istemci.test.mjs`: istemci veri katmanı. API `5xx`, ağ hatası, zaman aşımı ve bozuk yanıtta yerel
+  moda düşülmemesi ve yerel depoya yazılmaması; yeniden denemenin çalışması; açık yerel modun çalışması.
 
 ## Oyun
 
@@ -128,6 +231,9 @@ telefonda sol üstteki **←** oyuncuyu odadan çıkarır.
 - Sorular yönetici panelindeki aktif sorulardan rastgele seçilir. Cevaplar panelde soru başına başarı
   oranına eklenir (oyun sayısı istatistiğine eklenmez).
 - Doğru şık oyuncuya ancak süre bitince gönderilir; süre ve puan yalnızca sunucuda hesaplanır.
+  Soru açıkken hiçbir ekran (büyük ekran dahil) puan, seri ya da sıra değişikliği almaz; bir oyuncunun
+  doğru bilip bilmediği açıklama anına kadar görünmez.
+- Oda açma IP başına hız sınırlıdır (bkz. "Production").
 - Sayfa yenilenirse ya da bağlantı koparsa hem büyük ekran hem telefon kaldığı yerden devam eder.
 - Odalar sunucu belleğinde tutulur: sunucu yeniden başlarsa açık oyunlar kapanır. Hiç kullanılmayan
   oda 3 saat, sunucu ekranı kapalı kalan oda 30 dakika sonra silinir. Oda başına en çok 120 oyuncu.

@@ -4,6 +4,9 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID, timingSafeEqual, createHash } from 'node:crypto';
 import { createLive } from './canli.mjs';
+import { createSessions } from './oturum.mjs';
+import { createRateLimiter, clientIp } from './ratelimit.mjs';
+import { loadConfig } from './config.mjs';
 
 const DEFAULT_SETTINGS = { questionsPerGame: 15, endOnWrong: true, secondsPerQuestion: 30 };
 const DEFAULT_STATS = { games: 0, finished: 0, totalCorrect: 0, perQuestion: {} };
@@ -14,12 +17,19 @@ const GENERIC_ERROR = 'Sunucu hatası. Lütfen biraz sonra tekrar deneyin.';
  * sistem hatası ya da yığın izi içermemelidir. Diğer tüm hatalar genel bir mesajla yanıtlanır.
  */
 export class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, headers) {
     super(message);
     this.status = status;
     this.expose = true;
+    this.headers = headers;
   }
 }
+
+const tooMany = (retryAfter) =>
+  new HttpError(429, 'Çok fazla istek gönderildi. Lütfen biraz bekleyip tekrar deneyin.', { 'retry-after': String(retryAfter) });
+
+/** Günlük için yol: oturum ve benzeri kimlikler maskelenir. */
+const safePath = (p) => p.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':token');
 
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
@@ -60,8 +70,8 @@ function cleanSettings(input) {
   };
 }
 
-function send(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+function send(res, status, body, headers = {}) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
   res.end(JSON.stringify(body));
 }
 
@@ -132,10 +142,21 @@ function createJsonStore(files) {
 }
 
 /**
- * @param {{ dataDir: string, seedFile: string, adminPassword: string, log?: (...args: unknown[]) => void }} opts
+ * @param {{
+ *   dataDir: string, seedFile: string, adminPassword: string,
+ *   log?: (...args: unknown[]) => void,
+ *   trustProxy?: number,
+ *   limits?: ReturnType<typeof loadConfig>['limits'],
+ *   now?: () => number,
+ *   liveTiming?: { readyMs?: number },
+ * }} opts
  * @returns {(req, res, next?) => Promise<void>} Connect uyumlu ara katman
  */
-export function createApi({ dataDir, seedFile, adminPassword, log = console.error }) {
+export function createApi({
+  dataDir, seedFile, adminPassword, log = console.error, trustProxy = 0,
+  limits = loadConfig({}, 'development').limits, now = Date.now, liveTiming,
+}) {
+  if (typeof adminPassword !== 'string' || !adminPassword) throw new Error('createApi: adminPassword gerekli.');
   const files = {
     questions: join(dataDir, 'questions.json'),
     settings: join(dataDir, 'settings.json'),
@@ -197,35 +218,73 @@ export function createApi({ dataDir, seedFile, adminPassword, log = console.erro
     return { questions: questions.filter((q) => q.aktif), settings: { ...DEFAULT_SETTINGS, ...settings } };
   }
 
-  const live = createLive({ getGame, recordAnswers });
+  // Tek oyunculu oyun bittiğinde sunucunun doğruladığı cevaplardan istatistik yazılır.
+  function recordGame(answers, finished) {
+    return store.update('stats', DEFAULT_STATS, (stats) => {
+      stats.games += 1;
+      if (finished) stats.finished += 1;
+      addAnswers(stats, answers, true);
+      return { value: stats };
+    });
+  }
+
+  const live = createLive({ getGame, recordAnswers, timing: liveTiming });
+  const sessions = createSessions({ getGame, recordGame, HttpError, now });
+  const limiter = {
+    adminLogin: createRateLimiter({ ...limits.adminLogin, now }),
+    roomCreate: createRateLimiter({ ...limits.roomCreate, now }),
+    gameStart: createRateLimiter({ ...limits.gameStart, now }),
+  };
+  for (const l of Object.values(limiter)) setInterval(l.sweep, 60_000).unref?.();
 
   const isAdmin = (req) =>
     timingSafeEqual(createHash('sha256').update(String(req.headers['x-admin-key'] ?? '')).digest(), realKey);
 
+  /** Sınırı aşan istemci 429 alır. */
+  function limit(l, key) {
+    const r = l.hit(key);
+    if (r.limited) throw tooMany(r.retryAfter);
+  }
+
   async function route(req, res, pathname, query) {
     const method = req.method;
+    const ip = clientIp(req, trustProxy);
 
-    // Herkese açık uçlar (oyun ekranı)
-    if (method === 'GET' && pathname === '/api/oyun') return send(res, 200, await getGame());
+    // Herkese açık uçlar (oyun ekranı). Cevap anahtarı ve açıklamalar burada asla gönderilmez.
+    if (method === 'GET' && pathname === '/api/oyun') {
+      const { questions, settings } = await getGame();
+      return send(res, 200, { ayarlar: settings, aktifSoru: questions.length });
+    }
+    if (method === 'POST' && pathname === '/api/oyun/oturum') {
+      limit(limiter.gameStart, ip);
+      return send(res, 201, await sessions.start());
+    }
+    const og = pathname.match(/^\/api\/oyun\/oturum\/([^/]+)\/(cevap|joker)$/);
+    if (og && method === 'POST') {
+      const body = await readBody(req);
+      return send(res, 200, og[2] === 'cevap' ? await sessions.answer(og[1], body) : sessions.lifeline(og[1], body));
+    }
+    // Eski, istemci beyanına dayanan istatistik ucu kaldırıldı: istatistik artık sunucuda,
+    // doğrulanmış oyun cevaplarından üretilir.
+    if (pathname === '/api/sonuc') {
+      return send(res, 410, { error: 'Bu işlem artık desteklenmiyor.' });
+    }
     // Çok oyunculu canlı yarışma (server/canli.mjs)
     if (pathname.startsWith('/api/canli/')) {
+      if (method === 'POST' && pathname === '/api/canli/oda') limit(limiter.roomCreate, ip);
       if (await live(req, res, pathname, query, { send, readBody })) return;
       return send(res, 404, { error: 'Bulunamadı' });
     }
-    if (method === 'POST' && pathname === '/api/sonuc') {
-      const body = await readBody(req);
-      const answers = Array.isArray(body.answers) ? body.answers.slice(0, 100) : [];
-      await store.update('stats', DEFAULT_STATS, (stats) => {
-        stats.games += 1;
-        if (body.finished) stats.finished += 1;
-        addAnswers(stats, answers, true);
-        return { value: stats };
-      });
-      return send(res, 200, { ok: true });
-    }
 
-    // Yönetici uçları
-    if (!isAdmin(req)) return send(res, 401, { error: 'Şifre hatalı.' });
+    // Yönetici uçları. Yalnızca başarısız denemeler sayılır; başarılı giriş o adresin sayacını sıfırlar.
+    // Sınır aşıldıysa doğru parola da pencere dolana kadar 429 alır (deneme-yanılmayı durdurur).
+    const blocked = limiter.adminLogin.check(ip);
+    if (blocked.limited) throw tooMany(blocked.retryAfter);
+    if (!isAdmin(req)) {
+      limiter.adminLogin.hit(ip);
+      return send(res, 401, { error: 'Şifre hatalı.' });
+    }
+    limiter.adminLogin.reset(ip);
 
     if (method === 'GET' && pathname === '/api/admin') {
       const [questions, settings, stats] = await Promise.all([
@@ -294,9 +353,9 @@ export function createApi({ dataDir, seedFile, adminPassword, log = console.erro
     } catch (err) {
       const exposed = err?.expose === true;
       // Ayrıntı yalnızca sunucu günlüğüne yazılır; istemciye dosya yolu ya da sistem mesajı gitmez.
-      if (!exposed) log(`[api] ${req.method} ${pathname} başarısız:`, err);
+      if (!exposed) log(`[api] ${req.method} ${safePath(pathname)} başarısız:`, err);
       if (res.headersSent) return void res.end(); // akış açıldıktan sonra JSON hata gönderilemez
-      if (exposed) send(res, err.status, { error: err.message });
+      if (exposed) send(res, err.status, { error: err.message }, err.headers);
       else send(res, 500, { error: GENERIC_ERROR });
     }
   };

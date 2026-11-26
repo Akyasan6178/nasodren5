@@ -306,15 +306,19 @@ $('reset-stats').addEventListener('click', async () => {
 // ---------- açılış ----------
 
 (async () => {
+  // Mod derlemede seçilir; sunucu modunda veriler yalnızca API'den okunur ve API'ye yazılır.
   const mode = await detectMode();
-  $('local-banner').hidden = mode === 'api';
-  $('logout').hidden = mode !== 'api';
-  if (mode === 'api' && !hasAdminKey()) return showLogin();
+  $('local-banner').hidden = mode === 'sunucu';
+  $('logout').hidden = mode !== 'sunucu';
+  if (mode === 'sunucu' && !hasAdminKey()) return showLogin();
   try {
     await refresh();
     $('app').hidden = false;
   } catch (e) {
     const err = e as Error & { status?: number };
-    if (err.status === 401) { clearAdminKey(); showLogin(); } else { $('app').hidden = false; toast(err.message, true); }
+    if (err.status === 401) { clearAdminKey(); showLogin(); }
+    // Sunucuya ulaşılamadı: boş bir panel gösterilmez; giriş ekranından yeniden denenebilir.
+    else if (mode === 'sunucu') showLogin(err.message);
+    else { $('app').hidden = false; toast(err.message, true); }
   }
 })();

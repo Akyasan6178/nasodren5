@@ -58,28 +58,38 @@ export interface PlayerView {
   podium?: { name: string; score: number }[];
 }
 
+const NETWORK_ERROR = 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.';
+
+/** fetch; ağ hatasında kullanıcıya gösterilebilir bir mesajla hata fırlatır. */
+async function request(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Error(NETWORK_ERROR);
+  }
+}
+
 export async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await request(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || `İstek başarısız (${res.status})`), { status: res.status });
   return data as T;
 }
 
 export async function get<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await request(url, { cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || `İstek başarısız (${res.status})`), { status: res.status });
   return data as T;
 }
 
-/** Sunucu var mı? (Statik barındırmada çok oyunculu mod çalışmaz.) */
+/**
+ * Çok oyunculu mod yalnızca sunucu modunda çalışır. Mod derlemede seçilir (VITE_VERI_MODU=yerel ise
+ * sunucusuz statik barındırma); çalışma anında tahmin edilmez. Sunucuya ulaşılamazsa sonraki istekler
+ * hata mesajı ve "Tekrar dene" ile bildirilir.
+ */
 export async function serverAvailable(): Promise<boolean> {
-  try {
-    const r = await fetch('/api/oyun', { cache: 'no-store' });
-    return r.ok && !!r.headers.get('content-type')?.includes('json');
-  } catch {
-    return false;
-  }
+  return import.meta.env.VITE_VERI_MODU !== 'yerel';
 }
 
 /**

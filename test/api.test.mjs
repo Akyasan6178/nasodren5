@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, copyFile, stat, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { SEED_FILE, leaksInternals, startApi, tempDir } from './helpers.mjs';
+import { SEED_FILE, answerKey, correctChoice, leaksInternals, startApi, tempDir, wrongChoice } from './helpers.mjs';
 
 const seed = JSON.parse(await readFile(SEED_FILE, 'utf8'));
 const exists = (p) => stat(p).then(() => true, () => false);
@@ -20,28 +20,31 @@ const validQuestion = (n) => ({
 });
 
 /** Geçici dizin + sunucu kurar, testten sonra temizler. */
-async function withApi(t, setup = async () => ({})) {
+async function withApi(t, setup = async () => ({}), opts = {}) {
   const tmp = await tempDir();
   const dataDir = join(tmp.dir, 'data');
   const extra = await setup(tmp.dir, dataDir);
-  const api = await startApi({ dataDir, ...extra });
+  const api = await startApi({ dataDir, ...opts, ...extra });
   t.after(async () => { await api.close(); await tmp.cleanup(); });
   return { ...api, dataDir, tmpDir: tmp.dir, ...extra };
 }
 
 // ---------- başlatma ----------
 
-test('taze kurulum: soru dosyası seed\'den oluşturulur ve oyun soruları döner', async (t) => {
+test('taze kurulum: soru dosyası seed\'den oluşturulur, oyun ve panel çalışır', async (t) => {
   const api = await withApi(t);
   const r = await api.request('GET', '/api/oyun');
   assert.equal(r.status, 200);
-  assert.equal(r.json.questions.length, seed.filter((q) => q.aktif !== false).length);
-  assert.deepEqual(r.json.questions.map((q) => q.id), seed.map((q) => q.id));
+  assert.equal(r.json.aktifSoru, seed.filter((q) => q.aktif !== false).length);
   assert.deepEqual(await readJson(join(api.dataDir, 'questions.json')), seed);
+
+  const game = await api.request('POST', '/api/oyun/oturum');
+  assert.equal(game.status, 201);
+  assert.equal(game.json.sorular.length, game.json.ayarlar.questionsPerGame);
 
   const admin = await api.request('GET', '/api/admin', { admin: true });
   assert.equal(admin.status, 200);
-  assert.equal(admin.json.questions.length, seed.length);
+  assert.deepEqual(admin.json.questions, seed);
 });
 
 test('başarılı başlatma bir kez yapılır; mevcut veri yeniden seed\'lenmez', async (t) => {
@@ -72,7 +75,7 @@ test('seed yoksa başlatma güvenli hata verir, önbellekte kalmaz ve dosya geli
   await copyFile(SEED_FILE, api.seedFile);
   const second = await api.request('GET', '/api/oyun');
   assert.equal(second.status, 200);
-  assert.equal(second.json.questions.length, seed.length);
+  assert.equal(second.json.aktifSoru, seed.length);
 });
 
 test('bozuk seed JSON: hata verir, soru dosyası oluşturulmaz', async (t) => {
@@ -106,36 +109,52 @@ test('bozuk soru dosyası: boş veriyle değiştirilmez, yazma işlemleri dosyay
 
 // ---------- eşzamanlı yazma ----------
 
-test('30 paralel sonuç isteğinin tamamı istatistiğe yansır', async (t) => {
-  const api = await withApi(t);
-  const statsFile = join(api.dataDir, 'stats.json');
+/** Bir oyunu sonuna kadar oynar (ilk soru doğru, ikinci soru yanlış → endOnWrong ile biter). */
+async function playShortGame(api, key) {
+  const g = (await api.request('POST', '/api/oyun/oturum')).json;
+  const a1 = await api.request('POST', `/api/oyun/oturum/${g.token}/cevap`, { body: { index: 0, secim: correctChoice(key, g.sorular[0]) } });
+  assert.equal(a1.json.sonuc, 'dogru');
+  const a2 = await api.request('POST', `/api/oyun/oturum/${g.token}/cevap`, { body: { index: 1, secim: wrongChoice(key, g.sorular[1]) } });
+  assert.equal(a2.json.sonuc, 'yanlis');
+  assert.equal(a2.json.bitti, true);
+  return [g.sorular[0].soru, g.sorular[1].soru];
+}
+
+test('30 paralel oyunun sonuçlarının tamamı istatistiğe yansır', async (t) => {
+  const api = await withApi(t, undefined, { limits: { adminLogin: { max: 10, windowMs: 60_000 }, roomCreate: { max: 10, windowMs: 60_000 }, gameStart: { max: 1000, windowMs: 60_000 } } });
   assert.equal((await api.request('GET', '/api/oyun')).status, 200);
-  const ids = seed.slice(0, 3).map((q) => q.id);
+  const key = await answerKey(api.dataDir);
   const N = 30;
-  const results = await Promise.all(Array.from({ length: N }, (_, i) =>
-    api.request('POST', '/api/sonuc', {
-      body: { finished: i % 2 === 0, answers: [{ id: ids[0], correct: true }, { id: ids[1], correct: i % 3 === 0 }, { id: ids[2], correct: false }] },
-    })));
-  const ok = results.filter((r) => r.status === 200).length;
-  assert.equal(ok, N, 'tüm istekler başarılı olmalı');
-  const stats = await readJson(statsFile); // geçerli JSON olmalı
+  const played = await Promise.all(Array.from({ length: N }, () => playShortGame(api, key)));
+  const stats = await readJson(join(api.dataDir, 'stats.json')); // geçerli JSON olmalı
   assert.equal(stats.games, N);
-  assert.equal(stats.finished, N / 2);
-  assert.deepEqual(stats.perQuestion[ids[0]], { asked: N, correct: N });
-  assert.deepEqual(stats.perQuestion[ids[1]], { asked: N, correct: 10 });
-  assert.deepEqual(stats.perQuestion[ids[2]], { asked: N, correct: 0 });
-  assert.equal(stats.totalCorrect, N + 10);
-  assert.equal(await exists(`${statsFile}.tmp`), false, 'geçici dosya kalmamalı');
+  assert.equal(stats.finished, 0, 'yanlışla biten oyunlar "sonuna kadar" sayılmaz');
+  assert.equal(stats.totalCorrect, N);
+  const asked = Object.values(stats.perQuestion).reduce((a, s) => a + s.asked, 0);
+  assert.equal(asked, 2 * N);
+  // her soru için kayıt, oynanan oyunlarla birebir eşleşir
+  const bySoru = new Map([...key.values()].map((q) => [q.soru, q.id]));
+  const expected = new Map();
+  for (const [first, second] of played) {
+    for (const [soru, ok] of [[first, true], [second, false]]) {
+      const e = expected.get(bySoru.get(soru)) ?? { asked: 0, correct: 0 };
+      e.asked += 1;
+      if (ok) e.correct += 1;
+      expected.set(bySoru.get(soru), e);
+    }
+  }
+  assert.deepEqual(stats.perQuestion, Object.fromEntries(expected));
+  assert.equal(await exists(join(api.dataDir, 'stats.json.tmp')), false, 'geçici dosya kalmamalı');
 });
 
 test('soru, ayar ve istatistik yazmaları karışık ve paralel çalışınca veri kaybolmaz', async (t) => {
   const api = await withApi(t);
   assert.equal((await api.request('GET', '/api/oyun')).status, 200);
+  const key = await answerKey(api.dataDir);
   const jobs = [];
   for (let i = 0; i < 20; i++) jobs.push(api.request('POST', '/api/sorular', { admin: true, body: validQuestion(i) }));
   for (let i = 0; i < 10; i++) jobs.push(api.request('PUT', '/api/ayarlar', { admin: true, body: { questionsPerGame: 10 + i, secondsPerQuestion: 20, endOnWrong: true } }));
-  for (let i = 0; i < 10; i++) jobs.push(api.request('POST', '/api/sonuc', { body: { finished: true, answers: [] } }));
-  // Var olan bir soruyu da aynı anda düzenle
+  for (let i = 0; i < 10; i++) jobs.push(playShortGame(api, key).then(() => ({ status: 200 })));
   const target = seed[0];
   jobs.push(api.request('PUT', `/api/sorular/${target.id}`, { admin: true, body: { ...target, ipucu: 'Güncellenmiş ipucu' } }));
   const results = await Promise.all(jobs);
@@ -171,10 +190,13 @@ test('başarısız bir işlem kuyruğu kilitlemez', async (t) => {
 
 test('geçersiz JSON gövdesi 400 ve kullanıcıya yönelik mesaj döner', async (t) => {
   const api = await withApi(t);
-  const r = await api.request('POST', '/api/sonuc', { body: '{bozuk' });
-  assert.equal(r.status, 400);
-  assert.equal(r.json.error, 'İstek gövdesi geçerli bir JSON değil.');
-  assert.equal(leaksInternals(r.text, api.tmpDir), null);
+  const g = (await api.request('POST', '/api/oyun/oturum')).json;
+  for (const path of [`/api/oyun/oturum/${g.token}/cevap`, '/api/sorular']) {
+    const r = await api.request('POST', path, { body: '{bozuk', admin: true });
+    assert.equal(r.status, 400, path);
+    assert.equal(r.json.error, 'İstek gövdesi geçerli bir JSON değil.');
+    assert.equal(leaksInternals(r.text, api.tmpDir), null);
+  }
 });
 
 test('doğrulama hataları açıklayıcı kalır, yetki hatası 401 döner', async (t) => {
@@ -184,11 +206,23 @@ test('doğrulama hataları açıklayıcı kalır, yetki hatası 401 döner', asy
   assert.equal(bad.json.error, 'İpucu boş olamaz.');
   const unauth = await api.request('GET', '/api/admin');
   assert.equal(unauth.status, 401);
+  assert.equal(unauth.json.error, 'Şifre hatalı.');
 });
 
-test('çok oyunculu oda seed ile açılır', async (t) => {
-  const api = await withApi(t);
-  const r = await api.request('POST', '/api/canli/oda');
-  assert.equal(r.status, 201);
-  assert.match(r.json.code, /^\d{6}$/);
+test('günlükte oturum anahtarı ve istek gövdesi yer almaz', async (t) => {
+  const api = await withApi(t, async (_dir, dataDir) => {
+    await mkdir(dataDir, { recursive: true });
+    await writeFile(join(dataDir, 'questions.json'), JSON.stringify(seed));
+    return {};
+  });
+  const g = (await api.request('POST', '/api/oyun/oturum')).json;
+  // istatistik dosyası bozulursa oyun sonu yazımı başarısız olur ve günlüğe düşer
+  await writeFile(join(api.dataDir, 'stats.json'), '{bozuk');
+  const key = await answerKey(api.dataDir);
+  const r = await api.request('POST', `/api/oyun/oturum/${g.token}/cevap`, { body: { index: 0, secim: wrongChoice(key, g.sorular[0]) } });
+  assert.equal(r.status, 500);
+  assert.equal(leaksInternals(r.text, api.tmpDir), null);
+  const logged = api.logs.map((l) => l.map(String).join(' ')).join('\n');
+  assert.ok(logged.includes(':token'), 'yol maskelenmiş olmalı');
+  assert.ok(!logged.includes(g.token), 'oturum anahtarı günlüğe yazılmamalı');
 });

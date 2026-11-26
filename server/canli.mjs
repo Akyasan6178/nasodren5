@@ -46,9 +46,10 @@ function scoreFor(elapsedMs, limitMs, streak) {
 }
 
 /**
- * @param {{ getGame: () => Promise<{questions: any[], settings: any}>, recordAnswers: (a: {id: string, correct: boolean}[]) => Promise<void> }} deps
+ * @param {{ getGame: () => Promise<{questions: any[], settings: any}>, recordAnswers: (a: {id: string, correct: boolean}[]) => Promise<void>, timing?: { readyMs?: number } }} deps
  */
-export function createLive({ getGame, recordAnswers }) {
+export function createLive({ getGame, recordAnswers, timing = {} }) {
+  const readyMs = timing.readyMs ?? READY_MS;
   /** @type {Map<string, any>} */
   const rooms = new Map();
 
@@ -133,8 +134,15 @@ export function createLive({ getGame, recordAnswers }) {
   const round = (room) => room.rounds[room.index];
   const remaining = (room) => Math.max(0, room.deadline - Date.now());
 
+  // Soru açıkken (hazir/soru) herkes sorunun başındaki puanı, seriyi ve sırayı görür: bir oyuncunun
+  // cevabının doğru olup olmadığı (puan artışı, seri, sıra değişimi) açıklama anına kadar hiçbir
+  // ekrana — büyük ekran dahil — gönderilmez.
+  const hidden = (room) => room.phase === 'hazir' || room.phase === 'soru';
+  const shownScore = (room, p) => (hidden(room) ? p.baseScore : p.score);
+  const shownStreak = (room, p) => (hidden(room) ? p.baseStreak : p.streak);
+
   function ranking(room) {
-    return [...room.players.values()].sort((a, b) => b.score - a.score || a.joined - b.joined);
+    return [...room.players.values()].sort((a, b) => shownScore(room, b) - shownScore(room, a) || a.joined - b.joined);
   }
 
   function answerCounts(room) {
@@ -156,12 +164,12 @@ export function createLive({ getGame, recordAnswers }) {
       players: ranked.map((p, i) => ({
         id: p.id,
         name: p.name,
-        score: p.score,
-        streak: p.streak,
+        score: shownScore(room, p),
+        streak: shownStreak(room, p),
         online: p.streams.size > 0,
         rank: i + 1,
         prevRank: p.prevRank,
-        gained: p.answer?.points ?? 0,
+        gained: hidden(room) ? 0 : p.answer?.points ?? 0,
         answered: !!p.answer,
       })),
       answered: [...room.players.values()].filter((p) => p.answer).length,
@@ -189,7 +197,7 @@ export function createLive({ getGame, recordAnswers }) {
     const v = {
       phase: room.phase,
       code: room.code,
-      me: { id: p.id, name: p.name, score: p.score, streak: p.streak, rank: ranked.indexOf(p) + 1 },
+      me: { id: p.id, name: p.name, score: shownScore(room, p), streak: shownStreak(room, p), rank: ranked.indexOf(p) + 1 },
       playerCount: room.players.size,
       seconds: room.options.seconds,
       index: room.index,
@@ -254,7 +262,7 @@ export function createLive({ getGame, recordAnswers }) {
     }));
     room.index = -1;
     room.log = [];
-    for (const p of room.players.values()) Object.assign(p, { score: 0, streak: 0, answer: null, prevRank: 0, correctCount: 0 });
+    for (const p of room.players.values()) Object.assign(p, { score: 0, streak: 0, baseScore: 0, baseStreak: 0, answer: null, prevRank: 0, correctCount: 0 });
     nextQuestion(room);
     return null;
   }
@@ -263,11 +271,11 @@ export function createLive({ getGame, recordAnswers }) {
     clearTimeout(room.timer);
     if (room.index >= room.rounds.length - 1) return finish(room);
     const ranked = ranking(room);
-    ranked.forEach((p, i) => { p.prevRank = i + 1; p.answer = null; });
+    ranked.forEach((p, i) => { p.prevRank = i + 1; p.answer = null; p.baseScore = p.score; p.baseStreak = p.streak; });
     room.index++;
     room.phase = 'hazir';
-    room.deadline = Date.now() + READY_MS;
-    room.timer = setTimeout(() => openAnswers(room), READY_MS);
+    room.deadline = Date.now() + readyMs;
+    room.timer = setTimeout(() => openAnswers(room), readyMs);
     push(room);
   }
 
@@ -332,7 +340,7 @@ export function createLive({ getGame, recordAnswers }) {
     room.phase = 'lobi';
     room.rounds = [];
     room.index = -1;
-    for (const p of room.players.values()) Object.assign(p, { score: 0, streak: 0, answer: null, prevRank: 0, correctCount: 0 });
+    for (const p of room.players.values()) Object.assign(p, { score: 0, streak: 0, baseScore: 0, baseStreak: 0, answer: null, prevRank: 0, correctCount: 0 });
     push(room);
   }
 
@@ -423,6 +431,8 @@ export function createLive({ getGame, recordAnswers }) {
         joined: Date.now(),
         score: 0,
         streak: 0,
+        baseScore: 0,
+        baseStreak: 0,
         correctCount: 0,
         answer: null,
         prevRank: 0,

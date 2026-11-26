@@ -1,8 +1,8 @@
 // Oyun denetleyicisi: kurallar (Quiz) ile sahneyi (Scene), süreyi, müziği ve girdileri birbirine bağlar.
-import { DEFAULT_SETTINGS, loadGame, reportResult, type Question, type Settings } from '../shared/store';
+import { MESSAGES, startGame, type GameStart } from '../shared/store';
 import { isSoundOn, play, setSound, unlockAudio } from './audio';
 import { music } from './music';
-import { Quiz, type Lifeline } from './quiz';
+import { Quiz, type Lifeline, type Outcome } from './quiz';
 import type { Scene, SceneHandlers } from './render/scene';
 import type { ReviewRow } from './render/review';
 import type { Verdict } from './render/widgets';
@@ -33,7 +33,9 @@ export class Game {
   private token = 0; // yeni oyun başlayınca bekleyen zamanlayıcıları geçersiz kılar
   private timeLeft = 0;
   private timerOn = false;
-  private modalMode: 'start' | 'result' | 'pause' = 'start';
+  private modalMode: 'start' | 'result' | 'pause' | 'error' = 'start';
+  /** Hata penceresindeki "Tekrar dene" ile yeniden denenecek işlem. */
+  private retryAction: (() => void) | null = null;
   /** Mola: süre ve müzik durur, soru gizlenir. */
   private paused = false;
   /** Geçiş animasyonu sırasında basılan duraklatma, animasyon bitince uygulanır. */
@@ -52,8 +54,11 @@ export class Game {
 
   // ---------- akış ----------
 
-  /** Soruları yükler ve oyunu sıfırlar; soru yoksa false döner. */
-  private async prepare(): Promise<boolean> {
+  /**
+   * Yeni oyun açar (sunucu modunda sunucuda oturum) ve sahneyi sıfırlar. Başarısız olursa hata
+   * penceresi açılır; "Tekrar dene" `retry` işlemini çalıştırır. Yerel veriye asla düşülmez.
+   */
+  private async prepare(retry: () => void): Promise<boolean> {
     const t = ++this.token;
     this.busy = true;
     this.retryPending = -1;
@@ -63,46 +68,55 @@ export class Game {
     this.pausedHidden = [];
     this.stopClock();
     music.stop();
-    let pool: Question[] = [];
-    let settings: Settings = DEFAULT_SETTINGS;
+    this.quiz = null;
+    let game: GameStart;
     try {
-      ({ questions: pool, settings } = await loadGame());
-      settings = { ...DEFAULT_SETTINGS, ...settings };
-    } catch {
-      /* boş havuzla devam; aşağıda mesaj gösterilir */
+      game = await startGame();
+    } catch (err) {
+      if (t !== this.token) return false;
+      this.scene.board.alpha = 0;
+      this.showError(err, retry, 'Oyun başlatılamadı');
+      return false;
     }
     if (t !== this.token) return false;
     const s = this.scene;
     // yazı boyutları tüm havuza göre seçilir: sorudan soruya değişmez
-    s.setTextPool({
-      questions: pool.map((x) => x.soru),
-      answers: pool.flatMap((x) => [x.dogru, ...x.yanlislar]),
-      explanations: pool.flatMap((x) => [x.aciklama ?? '', ...(x.yanlisAciklamalar ?? [])]).map((t) => t.trim()).filter(Boolean),
-    });
+    // (sunucu, açıklamaları cevabı belli etmeyecek biçimde maskelenmiş olarak gönderir)
+    s.setTextPool({ questions: game.olcu.sorular, answers: game.olcu.secenekler, explanations: game.olcu.aciklamalar });
     this.setProgress(0, true);
     for (const b of Object.values(s.lifelines)) b.setVariant('n');
+    const settings = game.ayarlar;
     s.timer.view.visible = settings.secondsPerQuestion > 0;
     s.timer.set(settings.secondsPerQuestion, settings.secondsPerQuestion);
-
-    if (!pool.length) {
-      this.quiz = null;
-      s.modal.visible = false;
-      s.board.alpha = 1;
-      s.question.set('', 'Henüz soru eklenmemiş. Yönetici panelinden soru ekleyin.');
-      s.answers.forEach((a) => { a.set(''); a.setState('n'); });
-      s.counter.text = 'SORU 0 / 0';
-      s.setActionMode('none');
-      return false;
-    }
-    this.quiz = new Quiz(pool, settings);
+    this.quiz = new Quiz(game);
     this.syncLifelines();
     s.counter.text = `SORU 1 / ${this.quiz.total}`;
     return true;
   }
 
+  /**
+   * Sunucuya ulaşılamadı ya da istek reddedildi: oyun durur, hata penceresi açılır.
+   * "Tekrar dene" aynı işlemi yeniden dener; "Ana menü" yeni oyun hazırlar.
+   */
+  private showError(err: unknown, retry: () => void, title: string) {
+    const s = this.scene;
+    this.stopClock();
+    music.stop();
+    this.retryAction = retry;
+    this.modalMode = 'error';
+    s.setActionMode('none');
+    s.mEyebrow.text = 'BİR SORUN OLUŞTU';
+    s.mTitle.text = title;
+    s.mScore.text = '';
+    s.mBody.text = err instanceof Error && err.message ? err.message : MESSAGES.network;
+    s.mNew.setVariant('retry');
+    s.setModalKind('pause');
+    this.showModal();
+  }
+
   /** İlk açılış: sorular arkada gizli, "Başla" ile süre ve müzik başlar (mobilde ses için dokunuş gerekir). */
   async intro() {
-    if (!(await this.prepare())) return;
+    if (!(await this.prepare(() => void this.intro()))) return;
     const q = this.quiz!;
     const s = this.scene;
     s.board.alpha = 0;
@@ -120,7 +134,7 @@ export class Game {
 
   async start() {
     this.scene.modal.visible = false;
-    if (!(await this.prepare())) return;
+    if (!(await this.prepare(() => void this.start()))) return;
     await this.showRound(true);
     this.beginQuestion();
   }
@@ -269,16 +283,34 @@ export class Game {
     s.setActionMode('none');
     s.answers.forEach((a) => a.setInteractive(false));
     play('lock');
-    const chosen = s.answers[q.selected];
-    // gerilim: seçili şık nabız gibi parlar
+    const picked = q.selected;
+    const chosen = s.answers[picked];
+    // cevap hemen gönderilir; sonuç beklenirken seçili şık nabız gibi parlar (gerilim)
+    const pending = q.resolve();
+    pending.catch(() => undefined); // hata aşağıda ele alınır
     tween(LOCK_MS, (v) => { chosen.view.alpha = 0.78 + 0.22 * Math.cos(v * Math.PI * 6); }, { ease: ease.linear });
     await wait(LOCK_MS);
     if (t !== this.token) return;
     chosen.view.alpha = 1;
+    await this.finishAnswer(pending, picked);
+  }
 
-    const picked = q.selected;
-    if (q.retry()) return this.secondChance(picked);
-    const ok = q.reveal();
+  /** Cevabın sonucu geldi (ya da gelmedi: hata penceresi, "Tekrar dene" aynı cevabı yeniden gönderir). */
+  private async finishAnswer(pending: Promise<Outcome>, picked: number) {
+    const q = this.quiz!;
+    const s = this.scene;
+    const t = this.token;
+    let outcome: Outcome;
+    try {
+      outcome = await pending;
+    } catch (err) {
+      if (t === this.token) this.showError(err, () => void this.finishAnswer(q.resolve(), picked), 'Cevap gönderilemedi');
+      return;
+    }
+    if (t !== this.token) return;
+    if (outcome === 'retry') return this.secondChance(picked);
+    const ok = outcome === 'correct';
+    const chosen = s.answers[picked];
     play(ok ? 'correct' : 'wrong');
     if (!ok) { chosen.setState('bad'); chosen.refreshColor(); }
     await this.flashCorrect();
@@ -332,9 +364,8 @@ export class Game {
 
   private async onTimeout() {
     const q = this.quiz;
-    if (!q || this.busy || !q.timeout()) return;
+    if (!q || this.busy || q.phase !== 'answering') return;
     const s = this.scene;
-    const t = this.token;
     this.busy = true;
     this.stopClock();
     music.stop();
@@ -344,6 +375,20 @@ export class Game {
       if (a.state === 'sel' || a.state === 'hover') { a.setState('n'); a.refreshColor(); }
     });
     play('timeout');
+    await this.finishTimeout();
+  }
+
+  /** Süre doldu bildirimi; başarısız olursa hata penceresinden yeniden denenir. */
+  private async finishTimeout() {
+    const q = this.quiz!;
+    const t = this.token;
+    try {
+      await q.timeout();
+    } catch (err) {
+      if (t === this.token) this.showError(err, () => void this.finishTimeout(), 'Sonuç alınamadı');
+      return;
+    }
+    if (t !== this.token) return;
     await this.flashCorrect();
     if (t !== this.token) return;
     this.showFeedback('time');
@@ -397,7 +442,7 @@ export class Game {
     const q = this.quiz!;
     const s = this.scene;
     const won = !q.lost && q.correct === q.total;
-    void reportResult(q.log, !q.lost);
+    // İstatistik istemciden bildirilmez: sunucu, doğruladığı cevaplardan oyun bitince kendisi yazar.
     play(won ? 'win' : q.lost ? 'wrong' : 'correct');
     const pct = Math.round(q.progress * 100);
     this.modalMode = 'result';
@@ -423,22 +468,32 @@ export class Game {
     this.scene.modal.visible = false;
   }
 
-  private useLifeline(k: Lifeline) {
+  private async useLifeline(k: Lifeline) {
     const q = this.quiz;
     if (!q || this.busy || q.phase !== 'answering' || !q.lifelines[k]) return;
     const s = this.scene;
-    if (k === 'fifty') {
-      const removed = q.useFifty();
-      if (!removed.length) return;
-      removed.forEach((i, n) => s.answers[i].remove(120 + n * 180)); // şıklar sırayla elenir
-    } else if (k === 'hint') {
-      const res = q.useHint();
-      if (!res) return;
-      this.setTagline(res.text, 'hint');
-      if (res.removed >= 0) s.answers[res.removed].remove(200);
-    } else {
-      if (!q.useDouble()) return;
-      this.setTagline('Çift cevap aktif: ilk cevabınız yanlışsa bir hakkınız daha var.', 'double');
+    const t = this.token;
+    this.busy = true; // joker sonucu gelene kadar girdi ve süre bekler
+    try {
+      if (k === 'fifty') {
+        const removed = await q.useFifty();
+        if (t !== this.token || !removed.length) return;
+        removed.forEach((i, n) => s.answers[i].remove(120 + n * 180)); // şıklar sırayla elenir
+      } else if (k === 'hint') {
+        const res = await q.useHint();
+        if (t !== this.token || !res) return;
+        this.setTagline(res.text, 'hint');
+        if (res.removed >= 0) s.answers[res.removed].remove(200);
+      } else {
+        if (!(await q.useDouble()) || t !== this.token) return;
+        this.setTagline('Çift cevap aktif: ilk cevabınız yanlışsa bir hakkınız daha var.', 'double');
+      }
+    } catch (err) {
+      // joker harcanmadı; oyuncu tekrar deneyebilir
+      if (t === this.token) this.setTagline(err instanceof Error && err.message ? err.message : MESSAGES.network);
+      return;
+    } finally {
+      if (t === this.token) this.settle();
     }
     play('lifeline');
     s.lifelines[k].burst(LIFELINE_COLOR[k]);
@@ -528,7 +583,12 @@ export class Game {
       unlockAudio();
       play('click');
       if (this.modalMode === 'pause') this.resume();
-      else if (this.modalMode === 'start') void this.begin();
+      else if (this.modalMode === 'error') {
+        const retry = this.retryAction;
+        this.retryAction = null;
+        this.hideModal();
+        retry?.();
+      } else if (this.modalMode === 'start') void this.begin();
       else void this.start();
     },
     onHome: () => {

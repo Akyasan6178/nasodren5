@@ -66,6 +66,16 @@ test('oyun içinde marka adı geçmiyor', () => {
   assert.ok(!JSON.stringify(seed).toLocaleLowerCase('tr').includes('nasodren'));
 });
 
+test('siklamen sorularında tedavi ya da sağlık iddiası yok', () => {
+  const claims = /tedavi eder|tedavi ed|iyileştir|şifa|geçirir|sinüzite iyi gel|ilaç|sprey|ekstre|özüt|nazal/iu;
+  const plant = seed.filter((q) => q.kategori === 'Siklamen');
+  assert.ok(plant.length > 0);
+  for (const q of plant) {
+    const text = [q.soru, q.dogru, ...q.yanlislar, q.ipucu, q.aciklama, ...q.yanlisAciklamalar].join(' ');
+    assert.doesNotMatch(text, claims, `${q.id} tıbbi/ürün iddiası içeriyor`);
+  }
+});
+
 test('her kategoride birden fazla soru var', () => {
   const counts = new Map();
   for (const q of seed) counts.set(q.kategori, (counts.get(q.kategori) ?? 0) + 1);

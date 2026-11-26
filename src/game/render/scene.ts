@@ -63,7 +63,7 @@ export class Scene {
   readonly mTitle: Text;
   readonly mScore: Text;
   readonly mBody: Text;
-  readonly mNew: Button<'n' | 'start' | 'resume'>;
+  readonly mNew: Button<'n' | 'start' | 'resume' | 'retry'>;
   /** Çok oyunculu mod ("Kim Nefes Almak İster?") sunucu ekranına geçer. */
   readonly mMulti: Button;
   /** Mola penceresinden başlangıç ekranına dönüş. */
@@ -126,7 +126,7 @@ export class Scene {
     this.mScore = text({ fontSize: 30, fontWeight: '700' });
     this.mBody = text({ fontSize: 19, fill: C.muted, align: 'center', wordWrap: true, wordWrapWidth: 540, lineHeight: 28 });
     for (const t of [this.mEyebrow, this.mTitle, this.mScore, this.mBody]) t.anchor.set(0.5, 0);
-    this.mNew = new Button(220, 58, ['n', 'start', 'resume'], pinkButton({ n: 'Yeni oyun', start: 'Başla', resume: 'Devam et' }, 22), h.onModal);
+    this.mNew = new Button(220, 58, ['n', 'start', 'resume', 'retry'], pinkButton({ n: 'Yeni oyun', start: 'Başla', resume: 'Devam et', retry: 'Tekrar dene' }, 22), h.onModal);
     this.mMulti = new Button(220, 58, ['n'], neonButton('Çok oyunculu', 'people', 19), h.onMulti);
     this.mHome = new Button(220, 58, ['n'], neonButton('Ana menü', 'home', 19), h.onHome);
     this.card.view.addChild(this.mEyebrow, this.mTitle, this.mScore, this.mBody, this.mNew.view, this.mMulti.view, this.mHome.view);
