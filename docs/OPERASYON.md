@@ -129,13 +129,27 @@ npm run build && npm run scan:bundle
 npx wrangler pages deploy dist --project-name nasodren5 --branch main
 ```
 
-### 2.4 Özel alan adı (isteğe bağlı)
+### 2.4 Başka bir sitenin içinde açılma (iframe)
+
+Oyun yalnızca kendi sitesinde ve `https://yasasinsaglik.com` / `https://www.yasasinsaglik.com` içinde
+iframe olarak açılabilir. Bunu `public/_headers` dosyasındaki
+`Content-Security-Policy: frame-ancestors 'self' https://yasasinsaglik.com https://www.yasasinsaglik.com`
+satırı sağlar. Bu dosyaya `X-Frame-Options` **eklemeyin**: `X-Frame-Options: DENY` tarayıcının oyunu
+iframe içinde göstermesini engeller ve "bağlanmayı reddetti" hatası verdirir.
+
+- Yeni bir site eklemek gerekirse yalnızca o satıra tam adresi ekleyin; `*` kullanmayın.
+- Değişiklik Pages yeniden dağıtılınca geçerli olur. `test/headers.test.mjs` kuralı denetler.
+- Gömen sayfa tam ekran düğmesinin çalışması için iframe'e `allow="fullscreen"` vermelidir.
+- Yönetici paneli (`/admin`) iframe içinde değil, doğrudan adresinden açılmalıdır. Oturum cookie'si
+  güvenlik gereği (`SameSite=Strict`) başka bir sitenin içindeyken gönderilmez.
+
+### 2.5 Özel alan adı (isteğe bağlı)
 
 Pages → Custom domains → `<alan-adı>` ekleyin. `/api/*` aynı alan adında Pages Function üzerinden
 Worker'a gider; ayrı bir Worker route'u gerekmez. Başka bir origin'den API çağrılacaksa onu
 `ALLOWED_ORIGINS` değişkenine tam origin olarak ekleyin. `*` kabul edilmez.
 
-### 2.5 GitHub Actions (otomatik dağıtım)
+### 2.6 GitHub Actions (otomatik dağıtım)
 
 `.github/workflows/deploy.yml` her push'ta testleri, build'i, paket taramasını ve Worker dry-run'ını
 çalıştırır. `main`'e push'ta Worker'ı, Pages'i dağıtır ve canlı sağlık ile sürüm kontrolünü yapar.

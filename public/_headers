@@ -1,7 +1,7 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'self' https://yasasinsaglik.com https://www.yasasinsaglik.com
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), screen-wake-lock=(self)
   Strict-Transport-Security: max-age=31536000
 
